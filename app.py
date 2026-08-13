@@ -946,6 +946,9 @@ TR = {
     "flash.ai_disabled": {"ar": "المساعد الذكي غير مفعّل حاليًا — يجب على إدارة المنصة إعداد مفتاح API أولًا.",
                            "fr": "L'assistant IA n'est pas encore activé — l'administration "
                                  "doit d'abord configurer une clé API."},
+    "flash.ai_no_sub": {"ar": "المساعد الذكي متاح فقط للمشتركين — فعّل اشتراكك للاستفادة منه. 🔒",
+                         "fr": "L'assistant IA est réservé aux abonnés — active ton abonnement "
+                               "pour en profiter. 🔒"},
     "flash.ai_no_question": {"ar": "لم يصلنا أي سؤال.", "fr": "Nous n'avons reçu aucune question."},
     "flash.ai_daily_limit": {"ar": "لقد استعملت الحد الأقصى ({n} سؤالًا) لهذا اليوم — عاود المحاولة غدًا 🙏",
                               "fr": "Vous avez atteint la limite quotidienne ({n} questions) "
@@ -2514,6 +2517,8 @@ AI_SYSTEM_PROMPT = (
 def ai_chat():
     if not ai_client:
         return jsonify(error=t("flash.ai_disabled")), 503
+    if not is_subscribed():
+        return jsonify(error=t("flash.ai_no_sub")), 403
 
     data = request.get_json(silent=True) or {}
     incoming = data.get("messages", [])

@@ -373,6 +373,7 @@
     </div>
   </div>
 </div>
+<script>window.AI_SUBSCRIBED = {{ subscribed|tojson }};</script>
 <div class="ai-chat-widget">
   <button class="ai-chat-fab" id="aiChatFab" aria-label="{{ t('ai.widget_title') }}" aria-expanded="false">🤖</button>
   <div class="ai-chat-panel" id="aiChatPanel" hidden>
@@ -380,6 +381,7 @@
       <b>🤖 {{ t('ai.widget_title') }}</b>
       <button class="ai-chat-close" id="aiChatClose" aria-label="{{ t('ai.close') }}">✕</button>
     </div>
+    {% if subscribed %}
     <div class="ai-chat-body" id="aiChatBody">
       <div class="ai-msg ai-msg-bot">{{ t('ai.greeting', name=g.user.name.split()[0]) }}</div>
     </div>
@@ -387,6 +389,12 @@
       <input type="text" id="aiChatInput" placeholder="{{ t('ai.placeholder') }}" autocomplete="off" maxlength="1000">
       <button type="submit" class="btn btn-primary btn-sm">{{ t('ai.send') }}</button>
     </form>
+    {% else %}
+    <div class="ai-chat-locked">
+      <p>{{ t('flash.ai_no_sub') }}</p>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('pricing') }}">{{ t('db.activate_sub') }}</a>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endif %}

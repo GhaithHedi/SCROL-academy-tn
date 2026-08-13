@@ -102,6 +102,21 @@
     }
   });
 
+  if (aiFab && aiPanel) {
+    function aiSetOpen(open) {
+      aiPanel.hidden = !open;
+      aiFab.setAttribute("aria-expanded", open ? "true" : "false");
+      aiStoreSet(AI_OPEN_KEY, open);
+      if (open && aiInput) aiInput.focus();
+    }
+    function aiToggle() { aiSetOpen(!!aiPanel.hidden); }
+
+    aiFab.addEventListener("click", aiToggle);
+    if (aiClose) aiClose.addEventListener("click", function () { aiSetOpen(false); });
+
+    if (aiStoreGet(AI_OPEN_KEY, false)) aiSetOpen(true);
+  }
+
   if (aiFab && aiPanel && aiForm && aiInput && aiBody) {
     var aiHistory = aiStoreGet(AI_HISTORY_KEY, []);
     var aiBusy = false;
@@ -122,19 +137,6 @@
         aiAddMsg(m.content, m.role === "user" ? "user" : "bot");
       });
     }
-
-    function aiSetOpen(open) {
-      aiPanel.hidden = !open;
-      aiFab.setAttribute("aria-expanded", open ? "true" : "false");
-      aiStoreSet(AI_OPEN_KEY, open);
-      if (open) aiInput.focus();
-    }
-    function aiToggle() { aiSetOpen(!!aiPanel.hidden); }
-
-    aiFab.addEventListener("click", aiToggle);
-    if (aiClose) aiClose.addEventListener("click", function () { aiSetOpen(false); });
-
-    if (aiStoreGet(AI_OPEN_KEY, false)) aiSetOpen(true);
 
     aiForm.addEventListener("submit", function (e) {
       e.preventDefault();
