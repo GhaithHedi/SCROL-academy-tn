@@ -31,6 +31,14 @@
       </div>
     </div>
 
+    {% if g.user.role == 'student' %}
+    <div class="card dash-block settings-block">
+      <h3>{{ t('tour.replay_title') }}</h3>
+      <p class="muted">{{ t('tour.replay_sub') }}</p>
+      <button type="button" class="btn btn-outline" onclick="window.replayOnboarding && window.replayOnboarding()">{{ t('tour.replay_btn') }}</button>
+    </div>
+    {% endif %}
+
     <div class="card dash-block settings-block">
       <h3>{{ t('st.account') }}</h3>
       <p class="muted">{{ t('st.account_sub') }}</p>

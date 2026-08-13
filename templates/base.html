@@ -308,6 +308,34 @@
 
 {% if g.user and g.user.role == 'student' %}
 <script>
+  window.ONBOARDING_STEPS = [
+    { title: {{ t('tour.step1_title')|tojson }}, body: {{ t('tour.step1_body')|tojson }} },
+    { title: {{ t('tour.step2_title')|tojson }}, body: {{ t('tour.step2_body')|tojson }} },
+    { title: {{ t('tour.step3_title')|tojson }}, body: {{ t('tour.step3_body')|tojson }} },
+    { title: {{ t('tour.step4_title')|tojson }}, body: {{ t('tour.step4_body')|tojson }} },
+    { title: {{ t('tour.step5_title')|tojson }}, body: {{ t('tour.step5_body')|tojson }} }
+  ];
+  window.ONBOARDING_STRINGS = {
+    stepOf: {{ t('tour.step_of')|tojson }},
+    next: {{ t('tour.next')|tojson }},
+    prev: {{ t('tour.prev')|tojson }},
+    finish: {{ t('tour.finish')|tojson }}
+  };
+  window.ONBOARDING_AUTO_CHECK = {{ (request.endpoint == 'dashboard')|tojson }};
+</script>
+<div class="onboarding-overlay" id="onboardingOverlay" hidden>
+  <div class="onboarding-modal">
+    <button class="onboarding-skip" id="onboardingSkip" aria-label="{{ t('tour.skip') }}">{{ t('tour.skip') }} ✕</button>
+    <h3 id="onboardingTitle"></h3>
+    <p id="onboardingBody"></p>
+    <div class="onboarding-dots" id="onboardingDots"></div>
+    <div class="onboarding-actions">
+      <button class="btn btn-outline btn-sm" id="onboardingPrev">{{ t('tour.prev') }}</button>
+      <button class="btn btn-primary btn-sm" id="onboardingNext"></button>
+    </div>
+  </div>
+</div>
+<script>
   window.POMODORO_STRINGS = {
     workDone: {{ t('pomo.notif_work_done')|tojson }},
     breakDone: {{ t('pomo.notif_break_done')|tojson }},

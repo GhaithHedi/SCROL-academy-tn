@@ -382,6 +382,74 @@
     render();
   })();
 
+  /* ---- first-visit onboarding tour ---- */
+  (function () {
+    var overlay = document.getElementById("onboardingOverlay");
+    if (!overlay) return; // not a student page
+    var SEEN_KEY = "tafawok_onboarding_seen";
+    var steps = window.ONBOARDING_STEPS || [];
+    var STR = window.ONBOARDING_STRINGS || {};
+    var titleEl = document.getElementById("onboardingTitle");
+    var bodyEl = document.getElementById("onboardingBody");
+    var dotsEl = document.getElementById("onboardingDots");
+    var prevBtn = document.getElementById("onboardingPrev");
+    var nextBtn = document.getElementById("onboardingNext");
+    var skipBtn = document.getElementById("onboardingSkip");
+    var current = 0;
+
+    if (dotsEl && steps.length) {
+      steps.forEach(function () {
+        var dot = document.createElement("span");
+        dotsEl.appendChild(dot);
+      });
+    }
+
+    function renderStep() {
+      if (!steps.length) return;
+      var step = steps[current];
+      titleEl.textContent = step.title;
+      bodyEl.textContent = step.body;
+      Array.prototype.forEach.call(dotsEl.children, function (dot, i) {
+        dot.classList.toggle("onboarding-dot-on", i === current);
+      });
+      prevBtn.disabled = current === 0;
+      nextBtn.textContent = current === steps.length - 1 ? STR.finish : STR.next;
+    }
+
+    function open() {
+      current = 0;
+      renderStep();
+      overlay.hidden = false;
+    }
+    function close(markSeen) {
+      overlay.hidden = true;
+      if (markSeen) {
+        try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+      }
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        if (current > 0) { current--; renderStep(); }
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        if (current < steps.length - 1) { current++; renderStep(); }
+        else close(true);
+      });
+    }
+    if (skipBtn) skipBtn.addEventListener("click", function () { close(true); });
+
+    window.replayOnboarding = open;
+
+    if (window.ONBOARDING_AUTO_CHECK) {
+      var alreadySeen = false;
+      try { alreadySeen = localStorage.getItem(SEEN_KEY) === "1"; } catch (e) {}
+      if (!alreadySeen) open();
+    }
+  })();
+
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---- reveal on scroll ---- */

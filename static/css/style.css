@@ -1029,6 +1029,34 @@ html[dir="rtl"] .chat-compose { padding: 8px 16px 8px 8px; }
   .pomodoro-panel { width: 88vw; }
 }
 
+/* ============================ ONBOARDING TOUR ============================ */
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 500; background: rgba(23, 36, 74, .55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.onboarding-overlay[hidden] { display: none; }
+.onboarding-modal {
+  position: relative; width: min(440px, 100%); background: var(--card);
+  border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 34px 28px 26px; text-align: center;
+}
+.onboarding-skip {
+  position: absolute; top: 12px; inset-inline-end: 14px; background: none; border: none;
+  color: var(--ink-soft); font-size: .82rem; font-weight: 600; cursor: pointer; padding: 4px 6px;
+}
+.onboarding-skip:hover { color: var(--ink); }
+.onboarding-modal h3 { font-size: 1.2rem; margin-bottom: 10px; }
+.onboarding-modal p { color: var(--ink-soft); line-height: 1.75; margin-bottom: 20px; }
+.onboarding-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; }
+.onboarding-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
+.onboarding-dots span.onboarding-dot-on { background: var(--pen); transform: scale(1.3); }
+.onboarding-actions { display: flex; gap: 10px; justify-content: center; }
+.onboarding-actions .btn[disabled] { opacity: .4; cursor: default; }
+
+@media (max-width: 480px) {
+  .onboarding-modal { padding: 30px 20px 22px; }
+}
+
 /* ============================ REVEAL ============================ */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.in { opacity: 1; transform: none; }
