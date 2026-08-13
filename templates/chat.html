@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ct.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('ct.level_eyebrow', level=LEVEL_MAP.get(g.user.level_code, '')) }}</span>
+    <h1>{{ t('ct.h1') }}</h1>
+    <p class="section-sub">{{ t('ct.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    <div class="chat-tabs">
+      <a class="chat-tab {% if channel == 'general' %}chat-tab-on{% endif %}" href="{{ url_for('chat', ch='general') }}">{{ t('ct.tab_general') }}</a>
+      <a class="chat-tab {% if channel == 'students' %}chat-tab-on{% endif %}" href="{{ url_for('chat', ch='students') }}">{{ t('ct.tab_students') }}</a>
+    </div>
+
+    {% if messages %}
+    <div class="chat-list">
+      {% for m in messages %}
+      <div class="card chat-bubble {% if m.author_role in ('admin', 'prof') %}chat-bubble-admin{% endif %}">
+        <div class="chat-head">
+          <b>{{ m.author_name }}{% if m.author_role in ('admin', 'prof') %} <span class="chip chip-admin">{{ t('ct.admin_badge') }}</span>{% endif %}</b>
+          <small class="muted">{{ m.created_at }}</small>
+        </div>
+        <p class="chat-body">{{ m.body }}</p>
+        <div class="chat-reacts">
+          {% for emoji in emojis %}
+          <form method="post" action="{{ url_for('chat_react', mid=m.id) }}" class="inline-form">
+            <input type="hidden" name="emoji" value="{{ emoji }}">
+            <button class="react-btn {% if mine_map.get(m.id) == emoji %}react-on{% endif %}">
+              {{ emoji }}
+              {% set count = (react_map.get(m.id, []) | selectattr('0', 'equalto', emoji) | map(attribute=1) | first) %}
+              {% if count %}<span class="react-count">{{ count }}</span>{% endif %}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <h3>{{ t('ct.empty_title') }}</h3>
+      <p>{{ t('ct.empty_p') }}</p>
+    </div>
+    {% endif %}
+
+    <form class="chat-compose" method="post" action="{{ url_for('chat_send') }}">
+      <input type="hidden" name="channel" value="{{ channel }}">
+      <input type="text" name="body" class="chat-compose-input" placeholder="{{ t('ct.placeholder') }}" maxlength="1000" required autocomplete="off">
+      <button class="btn btn-primary btn-sm">{{ t('ct.send') }}</button>
+    </form>
+
+  </div>
+</section>
+{% endblock %}

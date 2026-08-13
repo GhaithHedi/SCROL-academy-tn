@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ lesson_title(c.level_code, c.subject, lesson.position, lesson.title) }}{% endblock %}
+
+{% block content %}
+<section class="section watch-wrap">
+  <div class="container watch-grid">
+
+    <div class="watch-main">
+      <nav class="crumbs">
+        <a href="{{ url_for('courses') }}">{{ t('nav.courses') }}</a> ‹
+        <a href="{{ url_for('course', cid=c.id) }}">{{ course_title(c.level_code, c.subject, c.title) }}</a>
+      </nav>
+
+      <div class="player card">
+        <div class="player-frame">
+          <iframe id="ytPlayer"
+            src="https://www.youtube.com/embed/{{ lesson.youtube_id }}?rel=0&enablejsapi=1"
+            title="{{ lesson_title(c.level_code, c.subject, lesson.position, lesson.title) }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen loading="lazy"></iframe>
+        </div>
+      </div>
+
+      <div class="watch-info">
+        <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }} — {{ LEVEL_MAP[c.level_code] }}</span>
+        <h1>{{ lesson_title(c.level_code, c.subject, lesson.position, lesson.title) }}</h1>
+        <p>{{ lesson_description(c.level_code, c.subject, lesson.position, lesson.description) }}</p>
+        <span class="lesson-meta">⏱ {{ lesson.duration_min }} {{ t('co.minutes') }}
+          {% if lesson.is_free %} · <b class="free-mark">{{ t('co.free') }}</b>{% endif %}
+        </span>
+        <form method="post" action="{{ url_for('watch_toggle', lid=lesson.id) }}" class="mark-done-form">
+          <button type="submit" class="btn btn-sm {% if is_done %}btn-outline{% else %}btn-primary{% endif %}">
+            {% if is_done %}{{ t('wa.mark_undo') }}{% else %}{{ t('wa.mark_done') }}{% endif %}
+          </button>
+        </form>
+        {% if not subscribed %}
+        <div class="unlock-banner card slim">
+          <div>
+            <b>{{ t('wa.like_it') }}</b>
+            <p>{{ t('wa.unlock_rest') }}</p>
+          </div>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('pricing') }}">{{ t('wa.offers') }}</a>
+        </div>
+        {% endif %}
+
+        {% if resources %}
+        <div class="lesson-resources">
+          <h3>{{ t('wa.resources_title') }}</h3>
+          <ul class="resource-list">
+            {% for r in resources %}
+            <li><a href="{{ r.url }}" target="_blank" rel="noopener">📎 {{ r.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <aside class="watch-side card">
+      <h3>{{ t('wa.chapter_lessons') }} <small>({{ playlist|length }})</small></h3>
+      <ol class="side-list">
+        {% for l in playlist %}
+        {% set unlocked = l.is_free or subscribed %}
+        <li class="{% if l.id == lesson.id %}side-current{% endif %} {% if l.id in done_ids %}side-done{% endif %}">
+          {% if unlocked %}
+            <a href="{{ url_for('watch', lid=l.id) }}">
+              <span class="side-num">{{ loop.index }}</span>
+              <span class="side-title">{{ lesson_title(c.level_code, c.subject, l.position, l.title) }}</span>
+              <span class="side-ico">{% if l.id in done_ids %}✓{% elif l.id == lesson.id %}▶{% else %}·{% endif %}</span>
+            </a>
+          {% else %}
+            <a href="{{ url_for('pricing') }}" class="side-lockrow" title="{{ t('co.subscribers_only_title') }}">
+              <span class="side-num">{{ loop.index }}</span>
+              <span class="side-title">{{ lesson_title(c.level_code, c.subject, l.position, l.title) }}</span>
+              <span class="side-ico">🔒</span>
+            </a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </aside>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>window.AI_LESSON_ID = {{ lesson.id }};</script>
+{% if g.user.role == 'student' %}
+<script>
+(function () {
+  var lessonId = {{ lesson.id }};
+  var player, reportTimer, lastSent = 0;
+
+  function sendProgress(seconds, useBeacon) {
+    seconds = Math.floor(seconds);
+    if (seconds <= lastSent) return;
+    lastSent = seconds;
+    var payload = JSON.stringify({ lesson_id: lessonId, seconds: seconds });
+    if (useBeacon && navigator.sendBeacon) {
+      navigator.sendBeacon("/api/watch-progress", payload);
+    } else {
+      fetch("/api/watch-progress", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: payload
+      }).catch(function () {});
+    }
+  }
+
+  window.onYouTubeIframeAPIReady = function () {
+    player = new YT.Player("ytPlayer", {
+      events: {
+        onStateChange: function (e) {
+          if (e.data === YT.PlayerState.PLAYING) {
+            clearInterval(reportTimer);
+            reportTimer = setInterval(function () {
+              try { sendProgress(player.getCurrentTime()); } catch (err) {}
+            }, 10000);
+          } else {
+            clearInterval(reportTimer);
+            try { sendProgress(player.getCurrentTime()); } catch (err) {}
+          }
+        }
+      }
+    });
+  };
+
+  window.addEventListener("pagehide", function () {
+    if (player && player.getCurrentTime) {
+      try { sendProgress(player.getCurrentTime(), true); } catch (err) {}
+    }
+  });
+
+  var tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ t('lb.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow live-eyebrow"><span class="live-dot"></span> {{ t('lb.live') }}</span>
+    <h1>{{ t('lb.h1') }}</h1>
+    <p class="section-sub">{{ t('lb.sub', level=LEVEL_MAP.get(level, level)) }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    {% if g.user.role == 'admin' %}
+    <div class="filters card">
+      <div class="filter-row">
+        <span class="filter-label">{{ t('lb.level_label') }}</span>
+        <div class="filter-chips">
+          {% for code, name in LEVELS %}
+          <a class="fchip {% if level == code %}fchip-on{% endif %}"
+             href="{{ url_for('leaderboard', level=code) }}">{{ name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card table-card">
+      <table class="atable lb-table">
+        <thead><tr><th>{{ t('lb.rank') }}</th><th>{{ t('lb.student') }}</th><th>{{ t('lb.completed_lessons') }}</th></tr></thead>
+        <tbody id="lbBody" data-me="{{ g.user.id }}" data-level="{{ level }}" data-you="{{ t('lb.you') }}">
+        {% for r in rows %}
+          <tr class="{% if r.id == g.user.id %}lb-me{% endif %}">
+            <td class="num lb-rank">
+              {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+            </td>
+            <td>{{ r.name }}{% if r.id == g.user.id %} <small>{{ t('lb.you') }}</small>{% endif %}</td>
+            <td class="num">{{ r.n_done }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="center muted">{{ t('lb.empty') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var tbody = document.getElementById("lbBody");
+  if (!tbody) return;
+  var level = tbody.getAttribute("data-level");
+  var me = parseInt(tbody.getAttribute("data-me"), 10);
+  var youLabel = tbody.getAttribute("data-you");
+  function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : String(i + 1); }
+  function refresh() {
+    fetch("{{ url_for('api_leaderboard') }}?level=" + encodeURIComponent(level))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.rows || !data.rows.length) return;
+        tbody.innerHTML = "";
+        data.rows.forEach(function (r, i) {
+          var mine = r.id === me;
+          var tr = document.createElement("tr");
+          if (mine) tr.className = "lb-me";
+          var tdRank = document.createElement("td");
+          tdRank.className = "num lb-rank";
+          tdRank.textContent = medal(i);
+          var tdName = document.createElement("td");
+          tdName.textContent = r.name + (mine ? " " + youLabel : "");
+          var tdDone = document.createElement("td");
+          tdDone.className = "num";
+          tdDone.textContent = r.n_done;
+          tr.appendChild(tdRank); tr.appendChild(tdName); tr.appendChild(tdDone);
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(function () {});
+  }
+  setInterval(refresh, 15000);
+})();
+</script>
+{% endblock %}

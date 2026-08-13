@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ text_dir }}" data-theme="{{ theme }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}أكاديمية SCROL{% endblock %} | أكاديمية SCROL</title>
+  <meta name="description" content="منصة تونسية لتعلّم الرياضيات والفيزياء من السابعة أساسي إلى البكالوريا — دروس فيديو، حصص مباشرة، وأول درس مجاني في كل محور.">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+{% macro lang_switch(cls) %}
+<div class="lang-switch {{ cls }}">
+  <a class="lang-btn {% if lang == 'ar' %}lang-btn-on{% endif %}" href="{{ url_for('set_lang', code='ar') }}">AR</a>
+  <a class="lang-btn {% if lang == 'fr' %}lang-btn-on{% endif %}" href="{{ url_for('set_lang', code='fr') }}">FR</a>
+</div>
+{% endmacro %}
+
+{% if g.user and g.user.role in ('student', 'admin', 'prof') %}
+{% set nav_courses = ('courses', 'course', 'watch') %}
+{% set atab = request.args.get('tab', 'overview') %}
+<div class="app-shell">
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="app-brand">
+      <a class="brand" href="{{ url_for('admin_panel' if g.user.role in ('admin', 'prof') else 'dashboard') }}">
+        <span class="brand-mark">∑</span>
+        <span class="brand-text">أكاديمية <b>SCROL</b></span>
+      </a>
+      <span class="app-brand-sub">{% if g.user.role == 'admin' %}{{ t('side.admin_panel_label') }}{% elif g.user.role == 'prof' %}{{ t('side.teacher_space') }}{% else %}{{ t('side.student_space') }}{% endif %}</span>
+    </div>
+
+    <nav class="app-nav">
+      {% if g.user.role == 'admin' %}
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'overview' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='overview') }}">
+        <span class="app-link-ic">🧭</span><span class="app-link-txt">{{ t('side.overview') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'levels' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='levels') }}">
+        <span class="app-link-ic">🎓</span><span class="app-link-txt">{{ t('side.levels') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'taxonomy' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='taxonomy') }}">
+        <span class="app-link-ic">🏷️</span><span class="app-link-txt">{{ t('side.taxonomy') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'payments' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='payments') }}">
+        <span class="app-link-ic">💳</span><span class="app-link-txt">{{ t('side.payments') }}</span>
+        {% if pending_payments %}<span class="app-badge">{{ pending_payments }}</span>{% endif %}
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'users' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='users') }}">
+        <span class="app-link-ic">👥</span><span class="app-link-txt">{{ t('side.users') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'teachers' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='teachers') }}">
+        <span class="app-link-ic">👨‍🏫</span><span class="app-link-txt">{{ t('side.teachers') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'content' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='content') }}">
+        <span class="app-link-ic">📚</span><span class="app-link-txt">{{ t('side.content') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'lives' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='lives') }}">
+        <span class="app-link-ic">🔴</span><span class="app-link-txt">{{ t('side.lives') }}</span>
+      </a>
+
+      <span class="app-nav-section"><span class="app-link-ic">🗂️</span> {{ t('side.community') }}</span>
+
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'chat' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='chat') }}">
+        <span class="app-link-ic">💬</span><span class="app-link-txt">{{ t('side.chat') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'notifications' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='notifications') }}">
+        <span class="app-link-ic">🔔</span><span class="app-link-txt">{{ t('side.notifications') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'leaderboard' %}app-link-on{% endif %}"
+         href="{{ url_for('leaderboard') }}">
+        <span class="app-link-ic">🏆</span><span class="app-link-txt">{{ t('side.leaderboard') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'settings' %}app-link-on{% endif %}"
+         href="{{ url_for('settings') }}">
+        <span class="app-link-ic">⚙️</span><span class="app-link-txt">{{ t('side.settings') }}</span>
+      </a>
+      {% elif g.user.role == 'prof' %}
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'content' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='content') }}">
+        <span class="app-link-ic">📚</span><span class="app-link-txt">{{ t('side.content') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'lives' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='lives') }}">
+        <span class="app-link-ic">🔴</span><span class="app-link-txt">{{ t('side.lives') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'admin_panel' and atab == 'chat' %}app-link-on{% endif %}"
+         href="{{ url_for('admin_panel', tab='chat') }}">
+        <span class="app-link-ic">💬</span><span class="app-link-txt">{{ t('side.chat') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'leaderboard' %}app-link-on{% endif %}"
+         href="{{ url_for('leaderboard') }}">
+        <span class="app-link-ic">🏆</span><span class="app-link-txt">{{ t('side.leaderboard') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'settings' %}app-link-on{% endif %}"
+         href="{{ url_for('settings') }}">
+        <span class="app-link-ic">⚙️</span><span class="app-link-txt">{{ t('side.settings') }}</span>
+      </a>
+      {% else %}
+      <a class="app-link {% if request.endpoint == 'dashboard' %}app-link-on{% endif %}"
+         href="{{ url_for('dashboard') }}">
+        <span class="app-link-ic">🧭</span><span class="app-link-txt">{{ t('side.dashboard') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint in ('pricing', 'checkout') %}app-link-on{% endif %}"
+         href="{{ url_for('pricing') }}">
+        <span class="app-link-ic">📦</span><span class="app-link-txt">{{ t('side.plans') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint in nav_courses %}app-link-on{% endif %}"
+         href="{{ url_for('courses') }}">
+        <span class="app-link-ic">📖</span><span class="app-link-txt">{{ t('side.my_courses') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'live' %}app-link-on{% endif %}"
+         href="{{ url_for('live') }}">
+        <span class="app-link-ic">📡</span><span class="app-link-txt">{{ t('side.live_rooms') }}</span>
+        {% if not subscribed %}<span class="app-lock" title="{{ t('side.subscribers_only') }}">🔒</span>{% endif %}
+      </a>
+
+      <span class="app-nav-section"><span class="app-link-ic">🗂️</span> {{ t('side.portfolio') }}</span>
+
+      <a class="app-link {% if request.endpoint == 'chat' %}app-link-on{% endif %}"
+         href="{{ url_for('chat') }}">
+        <span class="app-link-ic">💬</span><span class="app-link-txt">{{ t('side.group_chat') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'schedule' %}app-link-on{% endif %}"
+         href="{{ url_for('schedule') }}">
+        <span class="app-link-ic">🗓️</span><span class="app-link-txt">{{ t('side.schedule') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'leaderboard' %}app-link-on{% endif %}"
+         href="{{ url_for('leaderboard') }}">
+        <span class="app-link-ic">🏆</span><span class="app-link-txt">{{ t('side.leaderboard') }}</span>
+      </a>
+      <span class="app-link app-link-soon" title="{{ t('side.coming_soon') }}">
+        <span class="app-link-ic">📈</span><span class="app-link-txt">{{ t('side.analytics') }}</span>
+        <span class="app-lock">🔒</span>
+      </span>
+      <a class="app-link" href="{{ url_for('index') }}#contact">
+        <span class="app-link-ic">❓</span><span class="app-link-txt">{{ t('side.support') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'profile' %}app-link-on{% endif %}"
+         href="{{ url_for('profile') }}">
+        <span class="app-link-ic">👤</span><span class="app-link-txt">{{ t('side.profile') }}</span>
+      </a>
+      <a class="app-link {% if request.endpoint == 'settings' %}app-link-on{% endif %}"
+         href="{{ url_for('settings') }}">
+        <span class="app-link-ic">⚙️</span><span class="app-link-txt">{{ t('side.settings') }}</span>
+      </a>
+      {% endif %}
+    </nav>
+  </aside>
+  <div class="app-sidebar-backdrop" id="appSidebarBackdrop"></div>
+
+  <div class="app-main-wrap">
+    <header class="app-topbar">
+      <button class="app-burger" id="appSidebarToggle" aria-label="{{ t('top.open_menu') }}" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="brand app-topbar-brand" href="{{ url_for('admin_panel' if g.user.role in ('admin', 'prof') else 'dashboard') }}">
+        <span class="brand-mark">∑</span>
+        <span class="brand-text">أكاديمية <b>SCROL</b></span>
+      </a>
+      <div class="app-topbar-user">
+        {{ lang_switch('') }}
+        <span class="app-topbar-name">{% if g.user.role == 'admin' %}{{ t('top.admin_short') }}{% elif g.user.role == 'prof' %}{{ t('top.teacher_prefix') }}{% else %}{{ t('top.student_prefix') }}{% endif %} {{ g.user.name.split()[0] }}</span>
+        {% if g.user.role == 'student' %}
+        <a class="app-bell" href="{{ url_for('notifications') }}" title="{{ t('top.notifications') }}">
+          🔔{% if unread_count %}<span class="app-bell-badge">{{ unread_count if unread_count < 10 else '9+' }}</span>{% endif %}
+        </a>
+        {% endif %}
+        <a class="app-bell" href="{{ url_for('settings') }}" title="{{ t('side.settings') }}">⚙️</a>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="container flash-zone">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">
+              <span>{{ msg }}</span>
+              <button class="flash-x" onclick="this.parentElement.remove()" aria-label="✕">✕</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="app-content">
+{% else %}
+
+<header class="nav-wrap">
+  <nav class="container nav">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark">∑</span>
+      <span class="brand-text">أكاديمية <b>SCROL</b></span>
+    </a>
+
+    <button class="nav-burger" id="navBurger" aria-label="{{ t('top.open_menu') }}" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="nav-links" id="navLinks">
+      <a href="{{ url_for('index') }}">{{ t('nav.home') }}</a>
+      <a href="{{ url_for('courses') }}">{{ t('nav.courses') }}</a>
+      <a href="{{ url_for('live') }}">{{ t('nav.live') }}</a>
+      <a href="{{ url_for('pricing') }}">{{ t('nav.pricing') }}</a>
+      <a href="{{ url_for('index') }}#faq">{{ t('nav.faq') }}</a>
+      <a href="{{ url_for('index') }}#contact">{{ t('nav.contact') }}</a>
+    </div>
+
+    <div class="nav-auth">
+      {{ lang_switch('') }}
+      {% if g.user %}
+        <a class="btn btn-ghost" href="{{ url_for('admin_panel') }}">{{ t('guest.admin_panel') }}</a>
+        <a class="btn btn-outline" href="{{ url_for('logout') }}">{{ t('nav.logout') }}</a>
+      {% else %}
+        <a class="btn btn-ghost" href="{{ url_for('login') }}">{{ t('nav.login') }}</a>
+        <a class="btn btn-primary" href="{{ url_for('register') }}">{{ t('nav.register') }}</a>
+      {% endif %}
+    </div>
+  </nav>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container flash-zone">
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">
+          <span>{{ msg }}</span>
+          <button class="flash-x" onclick="this.parentElement.remove()" aria-label="✕">✕</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if g.user and g.user.role in ('student', 'admin', 'prof') %}
+    </main>
+  </div>
+</div>
+{% else %}
+</main>
+
+<footer class="footer" id="contact">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a class="brand brand-light" href="{{ url_for('index') }}">
+        <span class="brand-mark">∑</span>
+        <span class="brand-text">أكاديمية <b>SCROL</b></span>
+      </a>
+      <p>{{ t('footer.tagline') }}</p>
+      <div class="footer-contact">
+        <span dir="ltr">+216 00 000 000</span>
+        <span>contact@scrol.tn</span>
+      </div>
+      <div class="footer-social">
+        <a href="#" aria-label="YouTube" title="YouTube">▶</a>
+        <a href="#" aria-label="Instagram" title="Instagram">◎</a>
+        <a href="#" aria-label="Facebook" title="Facebook">f</a>
+        <a href="#" aria-label="WhatsApp" title="WhatsApp">✆</a>
+      </div>
+    </div>
+
+    <div>
+      <h4>{{ t('footer.platform') }}</h4>
+      <a href="{{ url_for('courses') }}">{{ t('footer.all_courses') }}</a>
+      <a href="{{ url_for('live') }}">{{ t('nav.live') }}</a>
+      <a href="{{ url_for('pricing') }}">{{ t('footer.pricing') }}</a>
+      <a href="{{ url_for('index') }}#faq">{{ t('nav.faq') }}</a>
+    </div>
+
+    <div>
+      <h4>{{ t('footer.account') }}</h4>
+      <a href="{{ url_for('login') }}">{{ t('nav.login') }}</a>
+      <a href="{{ url_for('register') }}">{{ t('nav.register') }}</a>
+      <a href="{{ url_for('dashboard') }}">{{ t('footer.my_space') }}</a>
+    </div>
+
+    <div>
+      <h4>{{ t('footer.legal') }}</h4>
+      <a href="{{ url_for('legal', page='terms') }}">{{ t('footer.terms') }}</a>
+      <a href="{{ url_for('legal', page='privacy') }}">{{ t('footer.privacy') }}</a>
+    </div>
+  </div>
+
+  <div class="container footer-bottom">
+    <span>{{ t('footer.tag_line2') }}</span>
+    <span>{{ t('footer.copyright') }}</span>
+  </div>
+</footer>
+
+{% endif %}
+
+{% if g.user and g.user.role == 'student' %}
+<script>
+  window.POMODORO_STRINGS = {
+    workDone: {{ t('pomo.notif_work_done')|tojson }},
+    breakDone: {{ t('pomo.notif_break_done')|tojson }},
+    phaseWork: {{ t('pomo.phase_work')|tojson }},
+    phaseBreak: {{ t('pomo.phase_break')|tojson }},
+    pause: {{ t('pomo.pause')|tojson }},
+    resume: {{ t('pomo.resume')|tojson }}
+  };
+  window.POMODORO_FORCE_SHOW = {{ (request.endpoint == 'courses')|tojson }};
+</script>
+<div class="pomodoro-widget" id="pomodoroWidget" hidden>
+  <button class="pomodoro-fab" id="pomodoroFab" aria-label="{{ t('pomo.widget_title') }}" aria-expanded="false">🍅</button>
+  <div class="pomodoro-panel" id="pomodoroPanel" hidden>
+    <div class="pomodoro-head">
+      <b>🍅 {{ t('pomo.widget_title') }}</b>
+      <button class="ai-chat-close" id="pomodoroClose" aria-label="{{ t('ai.close') }}">✕</button>
+    </div>
+    <div class="pomodoro-body">
+      <div data-pomo="active-view" hidden>
+        <div class="pomodoro-phase" data-pomo="phase"></div>
+        <div class="pomodoro-time" data-pomo="time">25:00</div>
+        <div class="pomodoro-actions">
+          <button class="btn btn-outline btn-sm" data-pomo="pause">{{ t('pomo.pause') }}</button>
+          <button class="btn btn-lock btn-sm" data-pomo="stop">{{ t('pomo.stop') }}</button>
+        </div>
+      </div>
+      <div data-pomo="start-view">
+        <p class="muted pomodoro-hint">{{ t('pomo.quick_start_hint') }}</p>
+        <div class="pomodoro-presets">
+          <button class="pomodoro-preset-btn" data-pomo-preset data-work="25" data-break="5">{{ t('pomo.preset_label', work=25, rest=5) }}</button>
+          <button class="pomodoro-preset-btn" data-pomo-preset data-work="50" data-break="10">{{ t('pomo.preset_label', work=50, rest=10) }}</button>
+        </div>
+        <a class="muted-link" href="{{ url_for('schedule') }}">{{ t('pomo.customize_link') }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ai-chat-widget">
+  <button class="ai-chat-fab" id="aiChatFab" aria-label="{{ t('ai.widget_title') }}" aria-expanded="false">🤖</button>
+  <div class="ai-chat-panel" id="aiChatPanel" hidden>
+    <div class="ai-chat-head">
+      <b>🤖 {{ t('ai.widget_title') }}</b>
+      <button class="ai-chat-close" id="aiChatClose" aria-label="{{ t('ai.close') }}">✕</button>
+    </div>
+    <div class="ai-chat-body" id="aiChatBody">
+      <div class="ai-msg ai-msg-bot">{{ t('ai.greeting', name=g.user.name.split()[0]) }}</div>
+    </div>
+    <form class="ai-chat-input-row" id="aiChatForm">
+      <input type="text" id="aiChatInput" placeholder="{{ t('ai.placeholder') }}" autocomplete="off" maxlength="1000">
+      <button type="submit" class="btn btn-primary btn-sm">{{ t('ai.send') }}</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

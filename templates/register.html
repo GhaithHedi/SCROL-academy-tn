@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reg.title') }}{% endblock %}
+
+{% block content %}
+<section class="auth-wrap">
+  <div class="container auth-grid">
+    <div class="auth-side reveal">
+      <h1>{{ t('reg.hero', excellence='<span class="hl">' + t('reg.excellence') + '</span>') | safe }}</h1>
+      <ul class="auth-perks">
+        <li>{{ t('reg.perk1') }}</li>
+        <li>{{ t('reg.perk2') }}</li>
+        <li>{{ t('reg.perk3') }}</li>
+        <li>{{ t('reg.perk4') }}</li>
+      </ul>
+      <p class="auth-quip">{{ t('reg.quip') }}</p>
+    </div>
+
+    <form class="card auth-card reveal delay-1" method="post" action="{{ url_for('register') }}">
+      <h2>{{ t('reg.form_title') }}</h2>
+
+      <label class="field">
+        <span>{{ t('reg.name') }}</span>
+        <input type="text" name="name" required placeholder="{{ t('reg.name_ph') }}" value="{{ request.form.name or '' }}">
+      </label>
+
+      <label class="field">
+        <span>{{ t('reg.email') }}</span>
+        <input type="email" name="email" required dir="ltr" placeholder="name@example.com" value="{{ request.form.email or '' }}">
+      </label>
+
+      <label class="field">
+        <span>{{ t('reg.phone') }}</span>
+        <input type="tel" name="phone" dir="ltr" placeholder="+216 -- --- ---" value="{{ request.form.phone or '' }}">
+      </label>
+
+      <label class="field">
+        <span>{{ t('reg.level') }}</span>
+        <select name="level" required>
+          <option value="" disabled {% if not request.form.level %}selected{% endif %}>{{ t('reg.level_choose') }}</option>
+          {% for code, name in LEVELS %}
+          <option value="{{ code }}" {% if request.form.level == code %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('reg.password') }} <small>{{ t('reg.password_hint') }}</small></span>
+        <input type="password" name="password" required minlength="6" placeholder="••••••••">
+      </label>
+
+      <button class="btn btn-primary btn-block btn-lg" type="submit">{{ t('reg.submit') }}</button>
+      <p class="auth-alt">{{ t('reg.have_account') }} <a href="{{ url_for('login') }}">{{ t('reg.login_link') }}</a></p>
+    </form>
+  </div>
+</section>
+{% endblock %}

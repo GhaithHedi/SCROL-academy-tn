@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.pricing') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('pr.eyebrow') }}</span>
+    <h1>{{ t('pr.title') }}</h1>
+    <p class="section-sub">{{ t('pr.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+    <div class="plans-grid plans-full">
+      {% for key, p in PLANS.items() %}
+      <article class="plan-card reveal {% if key == 'term' %}plan-featured{% endif %}">
+        {% if key == 'term' %}<span class="plan-flag">{{ t('pr.most_chosen') }}</span>{% endif %}
+        <h3>{{ p.name }}</h3>
+        <div class="plan-price"><span class="num">{{ p.price }}</span><span class="cur">د.ت</span></div>
+        <span class="plan-cycle">
+          {% if lang == 'fr' %}{{ p.months }} {{ t('pr.month_1') }}
+          {% else %}{{ t('pr.for_duration') }} {{ p.months }} {% if p.months == 1 %}{{ t('pr.month_1') }}{% elif p.months <= 10 %}{{ t('pr.month_few') }}{% else %}{{ t('pr.month_many') }}{% endif %}
+          {% endif %}
+        </span>
+        <p class="plan-desc">{{ p.desc }}</p>
+        <ul class="plan-feats">
+          {% for f in p.features %}<li>✓ {{ f }}</li>{% endfor %}
+        </ul>
+        {% if subscribed %}
+          <span class="btn btn-outline btn-block" aria-disabled="true">{{ t('pr.already_subscribed') }}</span>
+        {% elif g.user %}
+          <a class="btn {% if key == 'term' %}btn-primary{% else %}btn-outline{% endif %} btn-block"
+             href="{{ url_for('checkout', plan=key) }}">{{ t('pr.choose_offer') }}</a>
+        {% else %}
+          <a class="btn {% if key == 'term' %}btn-primary{% else %}btn-outline{% endif %} btn-block"
+             href="{{ url_for('register') }}">{{ t('pr.register_then_subscribe') }}</a>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="pay-methods card reveal">
+      <h3>{{ t('pr.pay_methods_title') }}</h3>
+      <div class="pay-chips">
+        {% for code, name in PAY_METHODS %}
+        <span class="pchip">{{ name }}</span>
+        {% endfor %}
+      </div>
+      <p class="muted">{{ t('pr.pay_note') }}</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

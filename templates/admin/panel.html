@@ -1,0 +1,693 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ad.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('ad.platform_mgmt') }}</span>
+    <h1>{{ t('ad.control_panel') }}</h1>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+
+    {# ------------------------------ OVERVIEW ------------------------------ #}
+    {% if tab == 'overview' %}
+    <div class="stats-grid">
+      <div class="stat-card card"><span class="stat-num num">{{ d.n_students }}</span><span>{{ t('ad.stat_students') }}</span></div>
+      <div class="stat-card card"><span class="stat-num num">{{ d.n_subs }}</span><span>{{ t('ad.stat_subs') }}</span></div>
+      <div class="stat-card card"><span class="stat-num num">{{ d.n_pending }}</span><span>{{ t('ad.stat_pending') }}</span></div>
+      <div class="stat-card card"><span class="stat-num num">{{ d.revenue }}</span><span>{{ t('ad.stat_revenue') }}</span></div>
+    </div>
+    <div class="card admin-note">
+      <h3>{{ t('ad.welcome_title') }}</h3>
+      <p>{{ t('ad.welcome_p') }}</p>
+    </div>
+    {% endif %}
+
+    {# ------------------------------- LEVELS -------------------------------- #}
+    {% if tab == 'levels' %}
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>{{ t('ad.level') }}</th><th>{{ t('ad.students_col') }}</th><th>{{ t('ad.subscribers_col') }}</th><th>{{ t('ad.lesson_views') }}</th><th>{{ t('ad.completed_lessons_col') }}</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for lv in levels_data %}
+          <tr class="{% if sel_level == lv.code %}arow-on{% endif %}">
+            <td><b>{{ lv.name }}</b></td>
+            <td class="num">{{ lv.n_students }}</td>
+            <td class="num">{{ lv.n_subs }}</td>
+            <td class="num">{{ lv.n_views }}</td>
+            <td class="num">{{ lv.n_done }}</td>
+            <td><a class="btn btn-outline btn-xs" href="{{ url_for('admin_panel', tab='levels', level=lv.code) }}">{{ t('ad.details') }}</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if sel_level %}
+    <h2 class="list-title">{{ t('ad.level_details', level=LEVEL_MAP.get(sel_level, sel_level)) }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>{{ t('ad.chapter') }}</th><th>{{ t('ad.subject_col') }}</th><th>{{ t('ad.lessons_col') }}</th><th>{{ t('ad.views_col') }}</th><th>{{ t('ad.completions_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for c in level_courses %}
+          <tr>
+            <td><b>{{ course_title(c.level_code, c.subject, c.title) }}</b></td>
+            <td><span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }}</span></td>
+            <td class="num">{{ c.n_lessons }}</td>
+            <td class="num">{{ c.n_views }}</td>
+            <td class="num">{{ c.n_done }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="center muted">{{ t('ad.no_chapters_level') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ------------------------------ PAYMENTS ------------------------------ #}
+    {% if tab == 'payments' %}
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>#</th><th>{{ t('ad.student_col') }}</th><th>{{ t('ad.offer_col') }}</th><th>{{ t('ad.amount_col') }}</th><th>{{ t('ad.method_col') }}</th><th>{{ t('ad.reference_col') }}</th><th>{{ t('ad.date_col') }}</th><th>{{ t('ad.status_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for p in payments %}
+          <tr>
+            <td class="num">{{ p.id }}</td>
+            <td>{{ p.user_name }}<br><small dir="ltr">{{ p.user_email }}</small></td>
+            <td>{{ PLANS[p.plan].name if p.plan in PLANS else p.plan }}</td>
+            <td class="num">{{ p.amount }} د.ت</td>
+            <td>{{ pay_map.get(p.method, p.method) }}</td>
+            <td><small>{{ p.reference or '—' }}</small></td>
+            <td><small>{{ p.created_at }}</small></td>
+            <td><span class="status status-{{ p.status }}">
+              {% if p.status == 'approved' %}{{ t('db.status_approved') }}{% elif p.status == 'pending' %}{{ t('db.status_pending') }}{% else %}{{ t('db.status_rejected') }}{% endif %}
+            </span></td>
+            <td>
+              {% if p.status == 'pending' %}
+              <form method="post" action="{{ url_for('admin_payment', pid=p.id, action='approve') }}" class="inline-form">
+                <button class="btn btn-primary btn-xs">{{ t('ad.accept') }}</button>
+              </form>
+              <form method="post" action="{{ url_for('admin_payment', pid=p.id, action='reject') }}" class="inline-form">
+                <button class="btn btn-lock btn-xs">{{ t('ad.reject') }}</button>
+              </form>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="center muted">{{ t('ad.no_payments_yet') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ------------------------------- USERS ------------------------------- #}
+    {% if tab == 'users' %}
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>#</th><th>{{ t('ad.name_col') }}</th><th>{{ t('ad.email_col') }}</th><th>{{ t('ad.level') }}</th><th>{{ t('ad.role_col') }}</th><th>{{ t('ad.watch_col') }}</th><th>{{ t('ad.subscription_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for u in users %}
+          <tr>
+            <td class="num">{{ u.id }}</td>
+            <td>{{ u.name }}</td>
+            <td dir="ltr"><small>{{ u.email }}</small></td>
+            <td>{{ LEVEL_MAP.get(u.level_code, '—') }}</td>
+            <td>{{ t('ad.role_admin') if u.role == 'admin' else t('ad.role_student') }}</td>
+            <td class="num">{% if u.role == 'student' %}{{ t('pf.n_minutes', n=watch_min_map.get(u.id, 0)) }}{% else %}—{% endif %}</td>
+            <td>
+              {% if u.sub_until and u.sub_until >= today %}
+                <span class="status status-approved">{{ t('ad.active_until', date=u.sub_until|ardateshort) }}</span>
+              {% else %}
+                <span class="status status-off">{{ t('ad.not_subscribed') }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.role != 'admin' %}
+              <form method="post" action="{{ url_for('admin_grant', uid=u.id) }}" class="inline-form">
+                <select name="plan" class="mini-select">
+                  {% for key, p in PLANS.items() %}<option value="{{ key }}">{{ p.name }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-primary btn-xs">{{ t('ad.activate_extend') }}</button>
+              </form>
+              {% if u.sub_until %}
+              <form method="post" action="{{ url_for('admin_revoke', uid=u.id) }}" class="inline-form">
+                <button class="btn btn-lock btn-xs">{{ t('ad.stop') }}</button>
+              </form>
+              {% endif %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ----------------------------- TAXONOMY ------------------------------ #}
+    {% if tab == 'taxonomy' %}
+    <div class="admin-forms">
+      <form class="card aform" method="post" action="{{ url_for('admin_level_add') }}">
+        <h3>{{ t('ad.add_level_title') }}</h3>
+        <label class="field"><span>{{ t('ad.code_field') }}</span>
+          <input type="text" name="code" dir="ltr" maxlength="8" placeholder="7b" required>
+        </label>
+        <label class="field"><span>{{ t('ad.name_ar_field') }}</span>
+          <input type="text" name="name_ar" required>
+        </label>
+        <label class="field"><span>{{ t('ad.name_fr_field') }}</span>
+          <input type="text" name="name_fr" dir="ltr" required>
+        </label>
+        <button class="btn btn-primary">{{ t('ad.add_level_btn') }}</button>
+      </form>
+
+      <form class="card aform" method="post" action="{{ url_for('admin_subject_add') }}">
+        <h3>{{ t('ad.add_subject_title') }}</h3>
+        <label class="field"><span>{{ t('ad.code_field') }}</span>
+          <input type="text" name="code" dir="ltr" maxlength="8" placeholder="sci" required>
+        </label>
+        <label class="field"><span>{{ t('ad.name_ar_field') }}</span>
+          <input type="text" name="name_ar" required>
+        </label>
+        <label class="field"><span>{{ t('ad.name_fr_field') }}</span>
+          <input type="text" name="name_fr" dir="ltr" required>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>{{ t('ad.color_field') }}</span>
+            <input type="color" name="color" value="#2350D8">
+          </label>
+          <label class="field"><span>{{ t('ad.glyph_field') }}</span>
+            <input type="text" name="glyph" dir="ltr" maxlength="4" placeholder="🧪">
+          </label>
+        </div>
+        <button class="btn btn-primary">{{ t('ad.add_subject_btn') }}</button>
+      </form>
+    </div>
+
+    <h2 class="list-title">{{ t('side.levels') }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>{{ t('ad.code_field') }}</th><th>{{ t('ad.name_ar_field') }}</th><th>{{ t('ad.name_fr_field') }}</th><th>{{ t('ad.usage_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for lv in all_levels %}
+          <tr>
+            <td class="num" dir="ltr">{{ lv.code }}</td>
+            <td>{{ lv.name_ar }}</td>
+            <td dir="ltr">{{ lv.name_fr }}</td>
+            <td class="num">{{ lv.n_uses }}</td>
+            <td>
+              <details class="alr-edit" id="level-edit-{{ lv.code }}">
+                <summary>{{ t('ad.edit') }}</summary>
+                <form method="post" action="{{ url_for('admin_level_edit', code=lv.code) }}" class="aform-inline">
+                  <label class="field"><span>{{ t('ad.name_ar_field') }}</span><input type="text" name="name_ar" value="{{ lv.name_ar }}"></label>
+                  <label class="field"><span>{{ t('ad.name_fr_field') }}</span><input type="text" name="name_fr" dir="ltr" value="{{ lv.name_fr }}"></label>
+                  <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+                </form>
+                {% if lv.n_uses %}
+                <p class="muted">{{ t('ad.taxonomy_in_use_note', n=lv.n_uses) }}</p>
+                {% else %}
+                <form method="post" action="{{ url_for('admin_level_delete', code=lv.code) }}" class="inline-form"
+                      onsubmit="return confirm('{{ t('ad.delete_confirm') }}');">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+                {% endif %}
+              </details>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="list-title">{{ t('ad.subjects_title') }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>{{ t('ad.code_field') }}</th><th>{{ t('ad.name_ar_field') }}</th><th>{{ t('ad.name_fr_field') }}</th><th>{{ t('ad.color_field') }}</th><th>{{ t('ad.glyph_field') }}</th><th>{{ t('ad.usage_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for sb in all_subjects %}
+          <tr>
+            <td class="num" dir="ltr">{{ sb.code }}</td>
+            <td>{{ sb.name_ar }}</td>
+            <td dir="ltr">{{ sb.name_fr }}</td>
+            <td><span class="taxo-swatch" style="background: {{ sb.color }};"></span></td>
+            <td>{{ sb.glyph }}</td>
+            <td class="num">{{ sb.n_uses }}</td>
+            <td>
+              <details class="alr-edit" id="subject-edit-{{ sb.code }}">
+                <summary>{{ t('ad.edit') }}</summary>
+                <form method="post" action="{{ url_for('admin_subject_edit', code=sb.code) }}" class="aform-inline">
+                  <label class="field"><span>{{ t('ad.name_ar_field') }}</span><input type="text" name="name_ar" value="{{ sb.name_ar }}"></label>
+                  <label class="field"><span>{{ t('ad.name_fr_field') }}</span><input type="text" name="name_fr" dir="ltr" value="{{ sb.name_fr }}"></label>
+                  <div class="field-row">
+                    <label class="field"><span>{{ t('ad.color_field') }}</span><input type="color" name="color" value="{{ sb.color }}"></label>
+                    <label class="field"><span>{{ t('ad.glyph_field') }}</span><input type="text" name="glyph" dir="ltr" maxlength="4" value="{{ sb.glyph }}"></label>
+                  </div>
+                  <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+                </form>
+                {% if sb.n_uses %}
+                <p class="muted">{{ t('ad.taxonomy_in_use_note', n=sb.n_uses) }}</p>
+                {% else %}
+                <form method="post" action="{{ url_for('admin_subject_delete', code=sb.code) }}" class="inline-form"
+                      onsubmit="return confirm('{{ t('ad.delete_confirm') }}');">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+                {% endif %}
+              </details>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# ----------------------------- TEACHERS ------------------------------ #}
+    {% if tab == 'teachers' %}
+    <form class="card aform" method="post" action="{{ url_for('admin_teacher_add') }}">
+      <h3>{{ t('ad.add_teacher_title') }}</h3>
+      <div class="field-row">
+        <label class="field"><span>{{ t('ad.name_col') }}</span>
+          <input type="text" name="name" required>
+        </label>
+        <label class="field"><span>{{ t('ad.email_col') }}</span>
+          <input type="email" name="email" dir="ltr" required>
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field"><span>{{ t('ad.password_field') }}</span>
+          <input type="text" name="password" dir="ltr" minlength="6" required>
+        </label>
+        <label class="field"><span>{{ t('ad.level_field') }}</span>
+          <select name="level_code">{% for c, n in LEVELS %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+        </label>
+      </div>
+      <button class="btn btn-primary">{{ t('ad.add_teacher_btn') }}</button>
+    </form>
+
+    <h2 class="list-title">{{ t('side.teachers') }}</h2>
+    {% if all_teachers %}
+    <div class="card table-card">
+      <table class="atable">
+        <thead>
+          <tr><th>{{ t('ad.name_col') }}</th><th>{{ t('ad.email_col') }}</th><th>{{ t('ad.level') }}</th><th>{{ t('ad.teacher_courses_col') }}</th><th>{{ t('ad.teacher_students_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+        </thead>
+        <tbody>
+        {% for pr in all_teachers %}
+          <tr>
+            <td>{{ pr.name }}</td>
+            <td dir="ltr"><small>{{ pr.email }}</small></td>
+            <td>{{ LEVEL_MAP.get(pr.level_code, '—') }}</td>
+            <td class="num">{{ pr.n_courses }}</td>
+            <td class="num">{{ pr.n_students }}</td>
+            <td>
+              <details class="alr-edit" id="teacher-edit-{{ pr.id }}">
+                <summary>{{ t('ad.edit') }}</summary>
+                <form method="post" action="{{ url_for('admin_teacher_edit', uid=pr.id) }}" class="aform-inline">
+                  <label class="field"><span>{{ t('ad.name_col') }}</span><input type="text" name="name" value="{{ pr.name }}"></label>
+                  <label class="field"><span>{{ t('ad.level_field') }}</span>
+                    <select name="level_code">{% for c, n in LEVELS %}<option value="{{ c }}" {% if c == pr.level_code %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+                  </label>
+                  <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+                </form>
+                <form method="post" action="{{ url_for('admin_teacher_delete', uid=pr.id) }}" class="inline-form"
+                      onsubmit="return confirm('{{ t('ad.delete_confirm') }}');">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+              </details>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <h3>{{ t('ad.no_teachers_title') }}</h3>
+      <p>{{ t('ad.no_teachers_p') }}</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ------------------------------ CONTENT ------------------------------ #}
+    {% if tab == 'content' %}
+    <div class="admin-forms">
+      <form class="card aform" method="post" action="{{ url_for('admin_course_add') }}">
+        <h3>{{ t('ad.add_course_title') }}</h3>
+        {% if g.user.role == 'prof' %}
+        <label class="field"><span>{{ t('ad.level_field') }}</span>
+          <input type="text" value="{{ LEVEL_MAP.get(g.user.level_code, '—') }}" disabled>
+        </label>
+        {% else %}
+        <label class="field"><span>{{ t('ad.level_field') }}</span>
+          <select name="level_code">{% for c, n in LEVELS %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+        </label>
+        {% endif %}
+        <label class="field"><span>{{ t('ad.subject_field') }}</span>
+          <select name="subject">{% for c, n in SUBJECTS %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+        </label>
+        <label class="field"><span>{{ t('ad.course_title_field') }}</span>
+          <input type="text" name="title" placeholder="{{ t('ad.course_title_ph') }}">
+        </label>
+        <label class="field"><span>{{ t('ad.short_desc') }}</span>
+          <textarea name="description" rows="2"></textarea>
+        </label>
+        <button class="btn btn-primary">{{ t('ad.add_course_btn') }}</button>
+      </form>
+
+      <form class="card aform" method="post" action="{{ url_for('admin_lesson_add') }}">
+        <h3>{{ t('ad.add_lesson_title') }}</h3>
+        <label class="field"><span>{{ t('ad.chapter_field') }}</span>
+          <select name="course_id">
+            {% for c in course_rows %}<option value="{{ c.id }}">{{ course_title(c.level_code, c.subject, c.title) }} ({{ c.n_lessons }})</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field"><span>{{ t('ad.lesson_title_field') }}</span>
+          <input type="text" name="title" placeholder="{{ t('ad.lesson_title_ph') }}">
+        </label>
+        <label class="field"><span>{{ t('ad.youtube_field') }}</span>
+          <input type="text" name="youtube_id" dir="ltr" placeholder="https://youtu.be/XXXXXXXXXXX">
+        </label>
+        <div class="field-row">
+          <label class="field"><span>{{ t('ad.duration_min_field') }}</span>
+            <input type="number" name="duration_min" value="20" min="1">
+          </label>
+          <label class="check"><input type="checkbox" name="is_free" value="1"> {{ t('ad.is_free_check') }}</label>
+        </div>
+        <button class="btn btn-primary">{{ t('ad.add_lesson_btn') }}</button>
+      </form>
+    </div>
+
+    <h2 class="list-title">{{ t('ad.current_content') }}</h2>
+    {% for c in course_rows %}
+    {% set course_lessons = lessons_by_course.get(c.id, []) %}
+    {% set quiz = quiz_by_course.get(c.id) %}
+    <details class="card acourse" id="acourse-{{ c.id }}">
+      <summary>
+        <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }}</span>
+        <b>{{ course_title(c.level_code, c.subject, c.title) }}</b>
+        <span class="muted">({{ t('crs.n_lessons', n=c.n_lessons) }})</span>
+      </summary>
+
+      <div class="acourse-body">
+        <a class="muted-link" href="{{ url_for('course', cid=c.id) }}" target="_blank">{{ t('ad.open_course_page') }}</a>
+
+        <details class="alr-edit" id="course-edit-{{ c.id }}">
+          <summary>{{ t('ad.edit') }} ({{ t('ad.course_title_field') }})</summary>
+          <form method="post" action="{{ url_for('admin_course_edit', cid=c.id) }}" class="aform-inline">
+            <label class="field"><span>{{ t('ad.course_title_field') }}</span>
+              <input type="text" name="title" value="{{ c.title }}">
+            </label>
+            <label class="field"><span>{{ t('ad.short_desc') }}</span>
+              <textarea name="description" rows="2">{{ c.description }}</textarea>
+            </label>
+            <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+          </form>
+          <p class="muted">{{ t('ad.delete_course_confirm_note') }}</p>
+          <form method="post" action="{{ url_for('admin_course_delete', cid=c.id) }}" class="inline-form"
+                onsubmit="return confirm('{{ t('ad.delete_course_confirm_note') }}');">
+            <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+          </form>
+        </details>
+
+        <h4 class="acourse-subhead">{{ t('ad.lessons_col') }}</h4>
+        <ul class="admin-lessons">
+          {% for l in course_lessons %}
+          <li class="admin-lesson-row">
+            <div class="alr-top">
+              <div class="alr-main">
+                <span class="alr-num">{{ loop.index }}.</span>
+                <span class="alr-title">{{ l.title }}</span>
+                {% if l.is_free %}<span class="chip chip-free">{{ t('co.free') }}</span>{% endif %}
+                {% if l.n_watchers %}
+                <span class="chip alr-watch-chip" title="{{ t('ad.watch_stat_title') }}">👁 {{ t('ad.watch_stat', n=l.n_watchers, pct=l.avg_watch_pct) }}</span>
+                {% endif %}
+              </div>
+              <div class="alr-actions">
+                <form method="post" action="{{ url_for('admin_lesson_move', lid=l.id, direction='up') }}" class="inline-form">
+                  <button class="btn btn-outline btn-xs" {% if loop.first %}disabled{% endif %}>{{ t('ad.move_up') }}</button>
+                </form>
+                <form method="post" action="{{ url_for('admin_lesson_move', lid=l.id, direction='down') }}" class="inline-form">
+                  <button class="btn btn-outline btn-xs" {% if loop.last %}disabled{% endif %}>{{ t('ad.move_down') }}</button>
+                </form>
+                <form method="post" action="{{ url_for('admin_lesson_delete', lid=l.id) }}" class="inline-form">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+              </div>
+            </div>
+            <details class="alr-edit" id="lesson-edit-{{ l.id }}">
+              <summary>{{ t('ad.edit') }}</summary>
+              <form method="post" action="{{ url_for('admin_lesson_edit', lid=l.id) }}" class="aform-inline">
+                <label class="field"><span>{{ t('ad.lesson_title_field') }}</span>
+                  <input type="text" name="title" value="{{ l.title }}">
+                </label>
+                <label class="field"><span>{{ t('ad.youtube_field') }}</span>
+                  <input type="text" name="youtube_id" dir="ltr" value="{{ l.youtube_id }}">
+                </label>
+                <div class="field-row">
+                  <label class="field"><span>{{ t('ad.duration_min_field') }}</span>
+                    <input type="number" name="duration_min" value="{{ l.duration_min }}" min="1">
+                  </label>
+                  <label class="check"><input type="checkbox" name="is_free" value="1" {% if l.is_free %}checked{% endif %}> {{ t('ad.is_free_check') }}</label>
+                </div>
+                <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+              </form>
+
+              <div class="alr-resources">
+                <b>{{ t('ad.resources_title') }}</b>
+                {% if l.resources %}
+                <ul class="resource-admin-list">
+                  {% for r in l.resources %}
+                  <li>
+                    <a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>
+                    <form method="post" action="{{ url_for('admin_resource_delete', rid=r.id) }}" class="inline-form">
+                      <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                    </form>
+                  </li>
+                  {% endfor %}
+                </ul>
+                {% else %}
+                <p class="muted">{{ t('ad.no_resources') }}</p>
+                {% endif %}
+                <form method="post" action="{{ url_for('admin_resource_add', lid=l.id) }}" class="aform-inline resource-add-form">
+                  <input type="text" name="title" placeholder="{{ t('ad.resource_title_ph') }}">
+                  <input type="url" name="url" dir="ltr" placeholder="{{ t('ad.resource_url_ph') }}">
+                  <button class="btn btn-outline btn-xs">{{ t('ad.add_resource_btn') }}</button>
+                </form>
+              </div>
+            </details>
+          </li>
+          {% endfor %}
+        </ul>
+
+        <h4 class="acourse-subhead">{{ t('ad.quiz_title') }}</h4>
+        <p class="muted">{{ t('ad.quiz_sub') }}</p>
+        <details class="alr-edit" id="quiz-add-{{ c.id }}">
+          <summary>{{ t('ad.add_question') }}</summary>
+          <form method="post" action="{{ url_for('admin_quiz_question_add', cid=c.id) }}" class="aform-inline">
+            <label class="field"><span>{{ t('ad.question_field') }}</span>
+              <input type="text" name="question" required>
+            </label>
+            {% for i in range(1, 5) %}
+            <label class="field"><span>{{ t('ad.option_n', n=i) }}</span>
+              <input type="text" name="option{{ i }}" required>
+            </label>
+            {% endfor %}
+            <label class="field"><span>{{ t('ad.correct_answer') }}</span>
+              <select name="correct">
+                {% for i in range(0, 4) %}<option value="{{ i }}">{{ t('ad.option_n', n=i + 1) }}</option>{% endfor %}
+              </select>
+            </label>
+            <button class="btn btn-primary btn-xs">{{ t('ad.add_question_btn') }}</button>
+          </form>
+        </details>
+
+        {% if quiz and quiz.questions %}
+        <p class="muted">{{ t('ad.existing_questions', n=quiz.questions|length) }}</p>
+        <ul class="admin-lessons">
+          {% for q in quiz.questions %}
+          <li class="admin-lesson-row">
+            <div class="alr-top">
+              <div class="alr-main"><span class="alr-title">{{ q.question }}</span></div>
+              <div class="alr-actions">
+                <form method="post" action="{{ url_for('admin_quiz_question_delete', qid=q.id) }}" class="inline-form">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">{{ t('ad.no_questions_yet') }}</p>
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+    {% endif %}
+
+    {# ------------------------------- LIVES ------------------------------- #}
+    {% if tab == 'lives' %}
+    <div class="admin-forms">
+      <form class="card aform" method="post" action="{{ url_for('admin_live_add') }}">
+        <h3>{{ t('ad.schedule_live_title') }}</h3>
+        <label class="field"><span>{{ t('ad.session_title_field') }}</span>
+          <input type="text" name="title" placeholder="{{ t('ad.session_title_ph') }}">
+        </label>
+        <div class="field-row">
+          <label class="field"><span>{{ t('ad.subject_field') }}</span>
+            <select name="subject">{% for c, n in SUBJECTS %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+          </label>
+          {% if g.user.role == 'prof' %}
+          <label class="field"><span>{{ t('ad.level_field') }}</span>
+            <input type="text" value="{{ LEVEL_MAP.get(g.user.level_code, '—') }}" disabled>
+          </label>
+          {% else %}
+          <label class="field"><span>{{ t('ad.level_field') }}</span>
+            <select name="level_code">{% for c, n in LEVELS %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+          </label>
+          {% endif %}
+        </div>
+        <div class="field-row">
+          <label class="field"><span>{{ t('ad.datetime_field') }}</span>
+            <input type="datetime-local" name="starts_at" required>
+          </label>
+          <label class="field"><span>{{ t('ad.duration_min_field') }}</span>
+            <input type="number" name="duration_min" value="60" min="15">
+          </label>
+        </div>
+        <label class="field"><span>{{ t('ad.teacher_field') }}</span>
+          <input type="text" name="teacher" placeholder="{{ t('ad.teacher_ph') }}">
+        </label>
+        <label class="field"><span>{{ t('ad.stream_link_field') }}</span>
+          <input type="url" name="meet_url" dir="ltr" placeholder="https://meet.google.com/...">
+        </label>
+        <button class="btn btn-primary">{{ t('ad.add_session_btn') }}</button>
+      </form>
+
+      <div class="card table-card">
+        <table class="atable">
+          <thead><tr><th>{{ t('ad.session_col') }}</th><th>{{ t('ad.subject_level_col') }}</th><th>{{ t('ad.appointment_col') }}</th><th></th></tr></thead>
+          <tbody>
+          {% for s in lives %}
+            <tr>
+              <td><b>{{ s.title }}</b><br><small>{{ s.teacher or '' }}</small></td>
+              <td>{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</td>
+              <td><small>{{ s.starts_at|ardate }}</small></td>
+              <td>
+                <form method="post" action="{{ url_for('admin_live_delete', lid=s.id) }}" class="inline-form">
+                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="center muted">{{ t('ad.no_sessions') }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# -------------------------------- CHAT --------------------------------- #}
+    {% if tab == 'chat' %}
+    {% if g.user.role != 'prof' %}
+    <div class="filters card">
+      <div class="filter-row">
+        <span class="filter-label">{{ t('ad.level_label') }}</span>
+        <div class="filter-chips">
+          {% for code, name in LEVELS %}
+          <a class="fchip {% if chat_level == code %}fchip-on{% endif %}"
+             href="{{ url_for('admin_panel', tab='chat', clevel=code) }}">{{ name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form class="card aform" method="post" action="{{ url_for('admin_chat_send') }}">
+      <input type="hidden" name="level_code" value="{{ chat_level }}">
+      <h3>{{ t('ad.message_to_chat', level=LEVEL_MAP.get(chat_level, chat_level)) }}</h3>
+      <label class="field"><span>{{ t('ad.message_text') }}</span>
+        <textarea name="body" rows="3" placeholder="{{ t('ad.message_ph') }}" required></textarea>
+      </label>
+      <button class="btn btn-primary">{{ t('ad.send_btn') }}</button>
+    </form>
+
+    <h2 class="list-title">{{ t('ad.message_log', level=LEVEL_MAP.get(chat_level, chat_level)) }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead><tr><th>{{ t('ad.message_col') }}</th><th>{{ t('ad.date_col') }}</th><th>{{ t('ad.reactions_col') }}</th></tr></thead>
+        <tbody>
+        {% for m in chat_history %}
+          <tr>
+            <td>{{ m.body }}</td>
+            <td><small>{{ m.created_at }}</small></td>
+            <td class="num">{{ m.n_reactions }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="center muted">{{ t('ad.no_messages_level') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# --------------------------- NOTIFICATIONS ------------------------------ #}
+    {% if tab == 'notifications' %}
+    <form class="card aform" method="post" action="{{ url_for('admin_notify_send') }}">
+      <h3>{{ t('ad.send_notif_title') }}</h3>
+      <label class="field"><span>{{ t('ad.notif_title_field') }}</span>
+        <input type="text" name="title" placeholder="{{ t('ad.notif_title_ph') }}" required>
+      </label>
+      <label class="field"><span>{{ t('ad.notif_text_field') }}</span>
+        <textarea name="body" rows="3" placeholder="{{ t('ad.notif_text_ph') }}" required></textarea>
+      </label>
+      <label class="field"><span>{{ t('ad.destination') }}</span>
+        <select name="target">
+          <option value="all">{{ t('ad.all_students') }}</option>
+          {% for code, name in LEVELS %}<option value="{{ code }}">{{ t('ad.level_prefix', level=name) }}</option>{% endfor %}
+        </select>
+      </label>
+      <button class="btn btn-primary">{{ t('ad.send_notif_btn') }}</button>
+    </form>
+
+    <h2 class="list-title">{{ t('ad.recent_notifs') }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead><tr><th>{{ t('ad.notif_title_field') }}</th><th>{{ t('ad.notif_text_field') }}</th><th>{{ t('ad.recipients_col') }}</th><th>{{ t('ad.date_col') }}</th></tr></thead>
+        <tbody>
+        {% for n in notif_history %}
+          <tr>
+            <td><b>{{ n.title }}</b></td>
+            <td><small>{{ n.body[:60] }}{% if n.body|length > 60 %}…{% endif %}</small></td>
+            <td class="num">{{ n.n_recipients }}</td>
+            <td><small>{{ n.created_at }}</small></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="center muted">{{ t('ad.no_notifs_sent') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

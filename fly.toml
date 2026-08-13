@@ -1,0 +1,26 @@
+# Fly.io config — أكاديمية SCROL
+# App name must be globally unique on Fly; change it below if taken,
+# then keep using the same name in every `fly` command afterward.
+app = "scrol-academy"
+primary_region = "cdg"
+
+[build]
+
+[env]
+  DB_PATH = "/data/academy.db"
+
+[[mounts]]
+  source = "scrol_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

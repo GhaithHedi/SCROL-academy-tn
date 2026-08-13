@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.courses') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('crs.eyebrow') }}</span>
+    <h1>{{ t('crs.title') }}</h1>
+    <p class="section-sub">{{ t('crs.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+
+    {% if g.user and sel_level == g.user.level_code %}
+    <div class="level-hint">
+      <span>{{ t('crs.hint', level='<b>' + LEVEL_MAP[sel_level] + '</b>') | safe }}</span>
+      <a href="{{ url_for('courses', level='all') }}">{{ t('crs.show_all_levels') }}</a>
+    </div>
+    {% endif %}
+
+    <div class="filters card">
+      <div class="filter-row">
+        <span class="filter-label">{{ t('crs.level_label') }}</span>
+        <div class="filter-chips">
+          <a class="fchip {% if not sel_level %}fchip-on{% endif %}"
+             href="{{ url_for('courses', level='all', subject=sel_subject or None) }}">{{ t('crs.all') }}</a>
+          {% for code, name in LEVELS %}
+          <a class="fchip {% if sel_level == code %}fchip-on{% endif %}"
+             href="{{ url_for('courses', level=code, subject=sel_subject or None) }}">{{ name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">{{ t('crs.subject_label') }}</span>
+        <div class="filter-chips">
+          <a class="fchip {% if not sel_subject %}fchip-on{% endif %}"
+             href="{{ url_for('courses', level=sel_level or None) }}">{{ t('crs.all') }}</a>
+          {% for code, name in SUBJECTS %}
+          <a class="fchip {% if sel_subject == code %}fchip-on{% endif %}"
+             href="{{ url_for('courses', level=sel_level or None, subject=code) }}">{{ name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {% if items %}
+    <div class="courses-grid">
+      {% for c in items %}
+      <a class="course-card reveal" href="{{ url_for('course', cid=c.id) }}">
+        <div class="course-band band-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">
+          <span class="course-glyph">{{ SUBJECT_META[c.subject].glyph }}</span>
+          <span class="chip chip-free">{{ t('crs.free_lesson_n', n=c.n_free) }}</span>
+        </div>
+        <div class="course-body">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }}</span>
+          <h3>{{ LEVEL_MAP[c.level_code] }}</h3>
+          <p class="course-desc">{{ course_description(c.level_code, c.subject, c.description)[:90] }}…</p>
+          <div class="course-meta">
+            <span>🎬 {{ t('crs.n_lessons', n=c.n_lessons) }}</span>
+            <span>{{ t('crs.duration', h=(c.total_min // 60), m=(c.total_min % 60)) }}</span>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <h3>{{ t('crs.empty_title') }}</h3>
+      <p>{{ t('crs.empty_p') }} <a href="{{ url_for('courses', level='all') }}">{{ t('crs.all_courses') }}</a>.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}{{ t('idx.title') }}{% endblock %}
+
+{% block content %}
+
+<!-- ============================ HERO ============================ -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy reveal">
+      <span class="eyebrow">{{ t('idx.eyebrow') }}</span>
+      <h1 class="display">
+        {{ t('idx.h1_line1') }}<br>
+        <span class="hl">{{ t('idx.h1_line2') }}</span>
+      </h1>
+      <p class="lead">
+        {{ t('idx.lead', free='<b>' + t('idx.free') + '</b>') | safe }}
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="{{ url_for('register') }}">{{ t('idx.cta_register') }}</a>
+        <a class="btn btn-outline btn-lg" href="{{ url_for('courses') }}">{{ t('idx.cta_browse') }}</a>
+      </div>
+      <ul class="hero-notes">
+        <li>{{ t('idx.note1') }}</li>
+        <li>{{ t('idx.note2') }}</li>
+        <li>{{ t('idx.note3') }}</li>
+      </ul>
+    </div>
+
+    <!-- Signature: a student's notebook page -->
+    <div class="hero-visual reveal delay-1" aria-hidden="true">
+      <div class="notebook">
+        <div class="notebook-margin"></div>
+        <div class="notebook-head">
+          <span class="notebook-date">{{ t('idx.notebook_session') }}</span>
+          <span class="grade-circle">20/20</span>
+        </div>
+        <svg class="notebook-svg" viewBox="0 0 340 220" role="img" aria-label="{{ t('idx.notebook_alt') }}">
+          <line x1="20" y1="190" x2="320" y2="190" stroke="var(--ink)" stroke-width="2"/>
+          <line x1="40" y1="210" x2="40" y2="15"  stroke="var(--ink)" stroke-width="2"/>
+          <polygon points="320,190 310,185 310,195" fill="var(--ink)"/>
+          <polygon points="40,15 35,25 45,25" fill="var(--ink)"/>
+          <path d="M55 175 Q 130 40 205 100 T 315 55" fill="none"
+                stroke="var(--pen)" stroke-width="3.5" stroke-linecap="round" class="curve"/>
+          <circle cx="130" cy="93" r="5" fill="var(--red-pen)"/>
+          <text x="122" y="80" font-size="14" fill="var(--red-pen)" font-weight="700">A</text>
+          <path d="M240 150 c 12 -6 26 -4 34 4" fill="none" stroke="var(--red-pen)"
+                stroke-width="2" stroke-dasharray="4 4"/>
+          <text x="245" y="172" font-size="13" fill="var(--red-pen)">{{ t('idx.notebook_local_max') }}</text>
+          <text x="60" y="35" font-size="16" fill="var(--ink)" font-family="IBM Plex Mono, monospace">f(x) = x³ − 3x + 1</text>
+          <text x="300" y="207" font-size="13" fill="var(--ink)">x</text>
+          <text x="24" y="24" font-size="13" fill="var(--ink)">y</text>
+        </svg>
+        <div class="notebook-foot">
+          {% if 'math' in SUBJECT_META %}<span class="chip chip-subj" style="--subj: {{ SUBJECT_META['math'].color }};">{{ SUBJECT_MAP['math'] }}</span>{% endif %}
+          {% if 'phys' in SUBJECT_META %}<span class="chip chip-subj" style="--subj: {{ SUBJECT_META['phys'].color }};">{{ SUBJECT_MAP['phys'] }}</span>{% endif %}
+          <span class="notebook-note">{{ t('idx.notebook_note') }}</span>
+        </div>
+      </div>
+      <div class="float-formula ff-1" dir="ltr">E = mc²</div>
+      <div class="float-formula ff-2" dir="ltr">∫ f(x)dx</div>
+      <div class="float-formula ff-3" dir="ltr">Σ uₙ</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= CHALKBOARD STATS ======================= -->
+<section class="chalkboard">
+  <div class="container chalk-grid">
+    <div class="chalk-stat reveal">
+      <span class="chalk-num" data-count="{{ stats.students }}">{{ stats.students }}</span>
+      <span class="chalk-label">{{ t('idx.stat_students') }}</span>
+    </div>
+    <div class="chalk-stat reveal delay-1">
+      <span class="chalk-num" data-count="{{ stats.lessons }}">{{ stats.lessons }}</span>
+      <span class="chalk-label">{{ t('idx.stat_lessons') }}</span>
+    </div>
+    <div class="chalk-stat reveal delay-2">
+      <span class="chalk-num">7</span>
+      <span class="chalk-label">{{ t('idx.stat_levels') }}</span>
+    </div>
+    <div class="chalk-stat reveal delay-3">
+      <span class="chalk-num">2</span>
+      <span class="chalk-label">{{ t('idx.stat_subjects') }}</span>
+    </div>
+  </div>
+  {% if next_live %}
+  <div class="container chalk-live reveal">
+    <span class="live-dot"></span>
+    <span>{{ t('idx.next_live') }} <b>{{ next_live.title }}</b> — {{ next_live.starts_at|ardate }}</span>
+    <a class="btn btn-chalk" href="{{ url_for('live') }}">{{ t('idx.live_program') }}</a>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ========================= HOW IT WORKS ========================= -->
+<section class="section" id="how">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.how_eyebrow') }}</span>
+      <h2>{{ t('idx.how_title') }}</h2>
+    </div>
+    <div class="steps-grid">
+      <article class="step-card reveal">
+        <span class="step-num">١</span>
+        <h3>{{ t('idx.step1_title') }}</h3>
+        <p>{{ t('idx.step1_desc') }}</p>
+      </article>
+      <article class="step-card reveal delay-1">
+        <span class="step-num">٢</span>
+        <h3>{{ t('idx.step2_title') }}</h3>
+        <p>{{ t('idx.step2_desc') }}</p>
+      </article>
+      <article class="step-card reveal delay-2">
+        <span class="step-num">٣</span>
+        <h3>{{ t('idx.step3_title') }}</h3>
+        <p>{{ t('idx.step3_desc') }}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== LEVELS =========================== -->
+<section class="section section-tinted" id="levels">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.levels_eyebrow') }}</span>
+      <h2>{{ t('idx.levels_title') }}</h2>
+      <p class="section-sub">{{ t('idx.levels_sub') }}</p>
+    </div>
+    <div class="levels-grid">
+      {% for code, name in LEVELS %}
+      <a class="level-card reveal {% if code == 'bac' %}level-bac{% endif %}"
+         href="{{ url_for('courses', level=code) }}">
+        <span class="level-name">{{ name }}</span>
+        <span class="level-sub">{{ t('idx.levels_subjects') }}</span>
+        {% if code == 'bac' %}<span class="level-badge">{{ t('idx.levels_bac_badge') }}</span>{% endif %}
+        <span class="level-arrow">←</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ======================== FREE SAMPLES ======================== -->
+<section class="section" id="samples">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.samples_eyebrow') }}</span>
+      <h2>{{ t('idx.samples_title1') }} <span class="hl-soft">{{ t('idx.samples_title2') }}</span></h2>
+      <p class="section-sub">{{ t('idx.samples_sub') }}</p>
+    </div>
+    <div class="samples-grid">
+      {% for s in free_samples %}
+      <a class="sample-card reveal" href="{{ url_for('watch', lid=s.id) }}">
+        <div class="sample-thumb thumb-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">
+          <span class="play-btn">▶</span>
+          <span class="chip chip-free">{{ t('idx.free_chip') }}</span>
+        </div>
+        <div class="sample-body">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</span>
+          <h3>{{ lesson_title(s.level_code, s.subject, s.position, s.title) }}</h3>
+          <span class="sample-meta">⏱ {{ s.duration_min }} {{ t('idx.minutes') }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ====================== WHY US / FEATURES ====================== -->
+<section class="section section-tinted" id="features">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.features_eyebrow') }}</span>
+      <h2>{{ t('idx.features_title') }}</h2>
+    </div>
+    <div class="features-grid">
+      <article class="feature-card reveal">
+        <span class="feature-ico">🎬</span>
+        <h3>{{ t('idx.feat1_title') }}</h3>
+        <p>{{ t('idx.feat1_desc') }}</p>
+      </article>
+      <article class="feature-card reveal delay-1">
+        <span class="feature-ico">🔴</span>
+        <h3>{{ t('idx.feat2_title') }}</h3>
+        <p>{{ t('idx.feat2_desc') }}</p>
+      </article>
+      <article class="feature-card reveal delay-2">
+        <span class="feature-ico">📝</span>
+        <h3>{{ t('idx.feat3_title') }}</h3>
+        <p>{{ t('idx.feat3_desc') }}</p>
+      </article>
+      <article class="feature-card reveal">
+        <span class="feature-ico">🧭</span>
+        <h3>{{ t('idx.feat4_title') }}</h3>
+        <p>{{ t('idx.feat4_desc') }}</p>
+      </article>
+      <article class="feature-card reveal delay-1">
+        <span class="feature-ico">💬</span>
+        <h3>{{ t('idx.feat5_title') }}</h3>
+        <p>{{ t('idx.feat5_desc') }}</p>
+      </article>
+      <article class="feature-card reveal delay-2">
+        <span class="feature-ico">💸</span>
+        <h3>{{ t('idx.feat6_title') }}</h3>
+        <p>{{ t('idx.feat6_desc') }}</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= PRICING TEASE ========================= -->
+<section class="section" id="pricing-tease">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.pricing_eyebrow') }}</span>
+      <h2>{{ t('idx.pricing_title') }}</h2>
+    </div>
+    <div class="plans-grid">
+      {% for key, p in PLANS.items() %}
+      <article class="plan-card reveal {% if key == 'term' %}plan-featured{% endif %}">
+        {% if key == 'term' %}<span class="plan-flag">{{ t('idx.most_chosen') }}</span>{% endif %}
+        <h3>{{ p.name }}</h3>
+        <div class="plan-price"><span class="num">{{ p.price }}</span><span class="cur">د.ت</span></div>
+        <p class="plan-desc">{{ p.desc }}</p>
+        <a class="btn {% if key == 'term' %}btn-primary{% else %}btn-outline{% endif %} btn-block"
+           href="{{ url_for('checkout', plan=key) if g.user else url_for('register') }}">
+          {{ t('idx.choose_plan') }}
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="plans-note reveal">{{ t('idx.plans_note') }} <a href="{{ url_for('pricing') }}">{{ t('idx.plans_details') }}</a></p>
+  </div>
+</section>
+
+<!-- ============================ FAQ ============================ -->
+<section class="section section-tinted" id="faq">
+  <div class="container container-narrow">
+    <div class="section-head reveal">
+      <span class="eyebrow">{{ t('idx.faq_eyebrow') }}</span>
+      <h2>{{ t('idx.faq_title') }}</h2>
+    </div>
+    <div class="faq-list">
+      {% for q, a in faqs %}
+      <details class="faq-item reveal" {% if loop.first %}open{% endif %}>
+        <summary>{{ q }}<span class="faq-plus">+</span></summary>
+        <p>{{ a }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CTA ============================ -->
+<section class="cta-final">
+  <div class="container cta-inner reveal">
+    <h2>{{ t('idx.cta_title') }}</h2>
+    <p>{{ t('idx.cta_sub') }}</p>
+    <div class="hero-actions cta-actions">
+      <a class="btn btn-light btn-lg" href="{{ url_for('register') }}">{{ t('idx.cta_register2') }}</a>
+      <a class="btn btn-chalk btn-lg" href="{{ url_for('pricing') }}">{{ t('idx.cta_discover') }}</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

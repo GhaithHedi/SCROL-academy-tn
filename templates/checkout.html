@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ch.title', plan=p.name) }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('ch.last_step') }}</span>
+    <h1>{{ t('ch.complete_sub') }}</h1>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container checkout-grid">
+
+    <div class="card checkout-summary reveal">
+      <h3>{{ t('ch.summary') }}</h3>
+      <div class="sum-row"><span>{{ t('ch.offer') }}</span><b>{{ p.name }}</b></div>
+      <div class="sum-row"><span>{{ t('ch.duration') }}</span><b>
+        {% if lang == 'fr' %}{{ p.months }} {{ t('pr.month_1') }}
+        {% else %}{{ p.months }} {% if p.months == 1 %}{{ t('pr.month_1') }}{% elif p.months <= 10 %}{{ t('pr.month_few') }}{% else %}{{ t('pr.month_many') }}{% endif %}
+        {% endif %}
+      </b></div>
+      <div class="sum-row sum-total"><span>{{ t('ch.amount') }}</span><b><span class="num">{{ p.price }}</span> د.ت</b></div>
+      <ul class="plan-feats">
+        {% for f in p.features %}<li>✓ {{ f }}</li>{% endfor %}
+      </ul>
+      <a class="muted-link" href="{{ url_for('pricing') }}">{{ t('ch.change_offer') }}</a>
+    </div>
+
+    <form class="card checkout-form reveal delay-1" method="post"
+          action="{{ url_for('checkout', plan=plan) }}">
+      <h3>{{ t('ch.step1') }}</h3>
+      <div class="pay-instructions">
+        <div class="pay-line"><b>D17 / Flouci:</b> <span dir="ltr">+216 00 000 000</span></div>
+        <div class="pay-line"><b>{{ t('ch.bank_transfer') }}</b> <span dir="ltr">TN00 0000 0000 0000 0000 0000</span></div>
+        <div class="pay-line"><b>{{ t('ch.mandat_to') }}</b> {{ t('ch.mandat_country') }}</div>
+        <p class="muted">{{ t('ch.demo_warning') }}</p>
+      </div>
+
+      <h3>{{ t('ch.step2') }}</h3>
+      <label class="field">
+        <span>{{ t('ch.method_used') }}</span>
+        <select name="method">
+          {% for code, name in methods %}
+          <option value="{{ code }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('ch.reference') }}</span>
+        <input type="text" name="reference" placeholder="{{ t('ch.reference_ph') }}">
+      </label>
+
+      <button class="btn btn-primary btn-block btn-lg" type="submit" name="action" value="confirm">
+        {{ t('ch.confirm_btn') }}
+      </button>
+      <p class="muted center">{{ t('ch.review_note') }}</p>
+    </form>
+
+  </div>
+</section>
+{% endblock %}

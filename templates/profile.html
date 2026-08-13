@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ t('pf.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container dash-head">
+    <div>
+      <span class="eyebrow">{{ t('pf.my_account') }}</span>
+      <h1>{{ t('pf.title') }}</h1>
+      <p class="section-sub">{{ t('pf.account_info') }}</p>
+    </div>
+    <div class="sub-badge {% if subscribed %}sub-on{% else %}sub-off{% endif %}">
+      {% if subscribed %}
+        <b>{{ t('db.sub_active') }}</b>
+        <span>{{ PLANS[g.user.sub_plan].name if g.user.sub_plan in PLANS else t('db.subscription_word') }}{% if g.user.sub_until %} — {{ t('db.until') }} {{ g.user.sub_until|ardateshort }}{% endif %}</span>
+      {% else %}
+        <b>{{ t('db.free_account') }}</b>
+        <span>{{ t('db.free_one_lesson') }}</span>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('pricing') }}">{{ t('db.activate_sub') }}</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+
+    <div class="dash-cols">
+      <div class="card dash-block">
+        <h3>{{ t('pf.personal_info') }}</h3>
+        <ul class="mini-list">
+          <li><b>{{ t('pf.full_name') }}</b><span>{{ g.user.name }}</span></li>
+          <li><b>{{ t('pf.email') }}</b><span dir="ltr">{{ g.user.email }}</span></li>
+          <li><b>{{ t('pf.phone') }}</b><span dir="ltr">{{ g.user.phone or '—' }}</span></li>
+          <li><b>{{ t('pf.level') }}</b><span>{{ LEVEL_MAP.get(g.user.level_code, '—') }}</span></li>
+          <li><b>{{ t('pf.member_since') }}</b><span>{{ g.user.created_at[:10]|ardateshort }}</span></li>
+        </ul>
+      </div>
+
+      <div class="card dash-block">
+        <h3>{{ t('pf.my_activity') }}</h3>
+        <ul class="mini-list">
+          <li><b>{{ t('pf.completed_lessons') }}</b><span>{{ t('pf.n_lessons', n=n_completed) }}</span></li>
+          <li><b>{{ t('pf.watch_minutes') }}</b><span>{{ t('pf.n_minutes', n=total_watch_min) }}</span></li>
+          <li><b>{{ t('pf.sub_status') }}</b><span>{% if subscribed and g.user.sub_until %}{{ t('pf.active_until', date=g.user.sub_until|ardateshort) }}{% elif subscribed %}{{ t('db.sub_active') }}{% else %}{{ t('db.free_account') }}{% endif %}</span></li>
+        </ul>
+        <p class="muted">{{ t('pf.settings_soon') }}</p>
+      </div>
+    </div>
+
+    <h2 class="list-title">{{ t('pf.quiz_history') }}</h2>
+    {% if quiz_attempts %}
+    <div class="card table-card">
+      <table class="atable">
+        <thead><tr><th>{{ t('ad.chapter') }}</th><th>{{ t('qz.result_title') }}</th><th>{{ t('ad.date_col') }}</th></tr></thead>
+        <tbody>
+        {% for a in quiz_attempts %}
+          <tr>
+            <td><a href="{{ url_for('course', cid=a.course_id) }}">{{ course_title(a.level_code, a.subject, a.course_title) }}</a></td>
+            <td class="num">{{ t('qz.result_score', score=a.score, total=a.total) }}</td>
+            <td><small>{{ a.created_at }}</small></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">{{ t('pf.no_quiz_attempts') }}</p>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

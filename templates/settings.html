@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ t('st.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('st.eyebrow') }}</span>
+    <h1>{{ t('st.h1') }}</h1>
+    <p class="section-sub">{{ t('st.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    <div class="card dash-block settings-block">
+      <h3>{{ t('st.appearance') }}</h3>
+      <p class="muted">{{ t('st.appearance_sub') }}</p>
+      <div class="theme-switch">
+        <a class="theme-opt {% if theme == 'light' %}theme-opt-on{% endif %}" href="{{ url_for('set_theme', mode='light') }}">{{ t('st.theme_light') }}</a>
+        <a class="theme-opt {% if theme == 'dark' %}theme-opt-on{% endif %}" href="{{ url_for('set_theme', mode='dark') }}">{{ t('st.theme_dark') }}</a>
+      </div>
+    </div>
+
+    <div class="card dash-block settings-block">
+      <h3>{{ t('st.language') }}</h3>
+      <p class="muted">{{ t('st.language_sub') }}</p>
+      <div class="theme-switch">
+        <a class="theme-opt {% if lang == 'ar' %}theme-opt-on{% endif %}" href="{{ url_for('set_lang', code='ar') }}">AR — العربية</a>
+        <a class="theme-opt {% if lang == 'fr' %}theme-opt-on{% endif %}" href="{{ url_for('set_lang', code='fr') }}">FR — Français</a>
+      </div>
+    </div>
+
+    <div class="card dash-block settings-block">
+      <h3>{{ t('st.account') }}</h3>
+      <p class="muted">{{ t('st.account_sub') }}</p>
+      <a class="btn btn-lock" href="{{ url_for('logout') }}">{{ t('top.logout') }}</a>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

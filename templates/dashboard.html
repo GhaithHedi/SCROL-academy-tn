@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ t('db.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container dash-head">
+    <div>
+      <span class="eyebrow">{{ t('db.student_space') }}</span>
+      <h1>{{ t('db.hello', name=g.user.name) }}</h1>
+      <p class="section-sub">{{ t('db.your_level') }} <b>{{ LEVEL_MAP.get(g.user.level_code, '—') }}</b></p>
+    </div>
+    <div class="sub-badge {% if subscribed %}sub-on{% else %}sub-off{% endif %}">
+      {% if subscribed %}
+        <b>{{ t('db.sub_active') }}</b>
+        <span>{{ PLANS[g.user.sub_plan].name if g.user.sub_plan in PLANS else t('db.subscription_word') }}{% if g.user.sub_until %} — {{ t('db.until') }} {{ g.user.sub_until|ardateshort }}{% endif %}</span>
+      {% else %}
+        <b>{{ t('db.free_account') }}</b>
+        <span>{{ t('db.free_one_lesson') }}</span>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('pricing') }}">{{ t('db.activate_sub') }}</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+
+    <h2 class="list-title">{{ t('db.progress_title') }}</h2>
+    <div class="progress-grid">
+      {% for subj, name in SUBJECTS %}
+      {% set p = progress.get(subj) %}
+      <div class="card progress-card">
+        <div class="progress-head">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[subj].color }};">{{ name }}</span>
+          {% if p %}<span class="progress-pct">{{ p.percent }}٪</span>{% endif %}
+        </div>
+        {% if p and p.total %}
+          <div class="progress-bar">
+            <div class="progress-fill fill-subj" style="--subj: {{ SUBJECT_META[subj].color }}; width: {{ p.percent }}%"></div>
+          </div>
+          <p class="muted progress-sub">{{ t('db.finished_n_of', done=p.done, total=p.total) }}</p>
+          {% if p.next_lesson %}
+          <a class="btn btn-outline btn-sm progress-next" href="{{ url_for('watch', lid=p.next_lesson.id) }}">
+            {{ t('db.next_lesson', title=lesson_title(p.course.level_code, p.course.subject, p.next_lesson.position, p.next_lesson.title)) }}
+          </a>
+          {% else %}
+          <p class="progress-done">{{ t('db.all_done', subject=name) }}</p>
+          {% endif %}
+        {% else %}
+          <p class="muted">{{ t('db.no_lessons_yet') }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <h2 class="list-title">{{ t('db.your_level_courses') }}</h2>
+    <div class="courses-grid dash-courses">
+      {% for c in my_courses %}
+      <a class="course-card reveal" href="{{ url_for('course', cid=c.id) }}">
+        <div class="course-band band-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">
+          <span class="course-glyph">{{ SUBJECT_META[c.subject].glyph }}</span>
+        </div>
+        <div class="course-body">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }}</span>
+          <h3>{{ course_title(c.level_code, c.subject, c.title) }}</h3>
+          <div class="course-meta"><span>🎬 {{ t('crs.n_lessons', n=c.n_lessons) }}</span></div>
+        </div>
+      </a>
+      {% endfor %}
+      <a class="course-card course-more" href="{{ url_for('courses') }}">
+        <span>{{ t('db.explore_other_levels') }}</span>
+      </a>
+    </div>
+
+    <div class="dash-cols">
+      <div class="card dash-block">
+        <h3>{{ t('db.nearest_lives') }}</h3>
+        {% if next_lives %}
+          <ul class="mini-list">
+            {% for s in next_lives %}
+            <li>
+              <b>{{ s.title }}</b>
+              <span>{{ s.starts_at|ardate }} · {{ SUBJECT_MAP[s.subject] }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          <a class="muted-link" href="{{ url_for('live') }}">{{ t('db.full_program') }}</a>
+        {% else %}
+          <p class="muted">{{ t('db.no_lives_for_level', level=LEVEL_MAP.get(g.user.level_code, '—')) }}</p>
+          <a class="muted-link" href="{{ url_for('live') }}">{{ t('db.watch_full_program') }}</a>
+        {% endif %}
+      </div>
+
+      <div class="card dash-block">
+        <h3>{{ t('db.my_payments') }}</h3>
+        {% if payments %}
+          <ul class="mini-list">
+            {% for pmt in payments %}
+            <li>
+              <b>{{ PLANS[pmt.plan].name if pmt.plan in PLANS else pmt.plan }} — <span class="num">{{ pmt.amount }}</span> د.ت</b>
+              <span>{{ pmt.created_at }} · {{ pay_map.get(pmt.method, pmt.method) }} ·
+                <span class="status status-{{ pmt.status }}">
+                  {% if pmt.status == 'approved' %}{{ t('db.status_approved') }}{% elif pmt.status == 'pending' %}{{ t('db.status_pending') }}{% else %}{{ t('db.status_rejected') }}{% endif %}
+                </span>
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">{{ t('db.no_payments') }}</p>
+          <a class="muted-link" href="{{ url_for('pricing') }}">{{ t('db.discover_offers') }}</a>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

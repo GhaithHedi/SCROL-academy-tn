@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.live') }}{% endblock %}
+
+{% block content %}
+<section class="page-head head-chalk">
+  <div class="container">
+    <span class="eyebrow eyebrow-light"><span class="live-dot"></span> {{ t('lv.on_air') }}</span>
+    <h1>{{ t('lv.title') }}</h1>
+    <p class="section-sub">{{ t('lv.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    <h2 class="list-title">{{ t('lv.upcoming') }}</h2>
+    {% if upcoming %}
+    <div class="live-list">
+      {% for s in upcoming %}
+      <article class="live-row card reveal">
+        <div class="live-when">
+          <span class="live-date">{{ s.starts_at|ardate }}</span>
+          <span class="live-dur">⏱ {{ s.duration_min }} {{ t('lv.minutes') }}</span>
+        </div>
+        <div class="live-info">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</span>
+          <h3>{{ s.title }}</h3>
+          {% if s.teacher %}<span class="live-teacher">👨‍🏫 {{ s.teacher }}</span>{% endif %}
+        </div>
+        <div class="live-action">
+          {% if subscribed and s.meet_url %}
+            <a class="btn btn-live" href="{{ s.meet_url }}" target="_blank" rel="noopener">{{ t('lv.live_link') }}</a>
+          {% elif g.user %}
+            <a class="btn btn-lock" href="{{ url_for('pricing') }}">{{ t('lv.subscribers_only') }}</a>
+          {% else %}
+            <a class="btn btn-lock" href="{{ url_for('login', next='/live') }}">{{ t('lv.login_btn') }}</a>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <h3>{{ t('lv.empty_title') }}</h3>
+      <p>{{ t('lv.empty_p') }}</p>
+    </div>
+    {% endif %}
+
+    {% if past %}
+    <h2 class="list-title">{{ t('lv.past') }}</h2>
+    <div class="live-list live-past">
+      {% for s in past %}
+      <article class="live-row card">
+        <div class="live-when">
+          <span class="live-date">{{ s.starts_at|ardate }}</span>
+        </div>
+        <div class="live-info">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</span>
+          <h3>{{ s.title }}</h3>
+        </div>
+        <div class="live-action"><span class="chip">{{ t('lv.ended') }}</span></div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

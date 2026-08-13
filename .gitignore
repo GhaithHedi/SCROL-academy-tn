@@ -1,0 +1,6 @@
+.env
+academy.db
+__pycache__/
+*.pyc
+venv/
+.claude/

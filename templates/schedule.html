@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{{ t('sc.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('sc.eyebrow') }}</span>
+    <h1>{{ t('sc.h1') }}</h1>
+    <p class="section-sub">{{ t('sc.sub') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container">
+
+    <div class="card pomodoro-card">
+      <h3>{{ t('pomo.card_title') }}</h3>
+      <p class="muted">{{ t('pomo.card_sub') }}</p>
+
+      <div data-pomo="active-view" hidden>
+        <div class="pomodoro-phase" data-pomo="phase"></div>
+        <div class="pomodoro-time pomodoro-time-lg" data-pomo="time">25:00</div>
+        <div class="pomodoro-actions">
+          <button class="btn btn-outline btn-sm" data-pomo="pause">{{ t('pomo.pause') }}</button>
+          <button class="btn btn-lock btn-sm" data-pomo="stop">{{ t('pomo.stop') }}</button>
+        </div>
+      </div>
+
+      <div data-pomo="start-view">
+        <div class="pomodoro-presets">
+          <button class="pomodoro-preset-btn" data-pomo-preset data-work="25" data-break="5">{{ t('pomo.preset_label', work=25, rest=5) }}</button>
+          <button class="pomodoro-preset-btn" data-pomo-preset data-work="50" data-break="10">{{ t('pomo.preset_label', work=50, rest=10) }}</button>
+          <button class="pomodoro-preset-btn" data-pomo-preset data-work="55" data-break="15">{{ t('pomo.preset_label', work=55, rest=15) }}</button>
+          <button class="pomodoro-preset-btn" id="pomodoroCustomToggle" type="button">{{ t('pomo.custom') }}</button>
+        </div>
+        <div class="pomodoro-sliders" id="pomodoroSliders" hidden>
+          <label class="pomodoro-slider-label">
+            <span>{{ t('pomo.work_duration') }}: <b id="pomodoroWorkVal">25</b> {{ t('pomo.minutes_short') }}</span>
+            <input type="range" id="pomodoroWorkSlider" min="5" max="90" step="5" value="25">
+          </label>
+          <label class="pomodoro-slider-label">
+            <span>{{ t('pomo.break_duration') }}: <b id="pomodoroBreakVal">5</b> {{ t('pomo.minutes_short') }}</span>
+            <input type="range" id="pomodoroBreakSlider" min="1" max="30" step="1" value="5">
+          </label>
+          <button class="btn btn-primary btn-sm" id="pomodoroCustomStart">{{ t('pomo.start') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card agenda-card">
+      <div class="agenda-head">
+        <div>
+          <h3>{{ t('sc.agenda_title') }}</h3>
+          <p class="muted agenda-sub">{{ t('sc.agenda_sub') }}</p>
+        </div>
+        <div class="agenda-legend">
+          <span><i class="agenda-swatch agenda-swatch-mine"></i> {{ t('sc.legend_mine') }}</span>
+          <span><i class="agenda-swatch agenda-swatch-live"></i> {{ t('sc.legend_live') }}</span>
+        </div>
+      </div>
+
+      <div class="agenda-nav">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('schedule', w=week_offset - 1) }}">‹ {{ t('sc.prev_week') }}</a>
+        <div class="agenda-week-label">
+          <b>{{ week_label }}</b>
+          {% if week_offset != 0 %}<a class="muted-link" href="{{ url_for('schedule') }}">{{ t('sc.back_today') }}</a>{% endif %}
+        </div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('schedule', w=week_offset + 1) }}">{{ t('sc.next_week') }} ›</a>
+      </div>
+
+      <div class="agenda-days">
+        {% for day in days %}
+        <div class="agenda-day {% if day.is_today %}agenda-day-today{% endif %}">
+          <div class="agenda-day-head">
+            <span class="agenda-day-name">{{ day.day_name }}</span>
+            <span class="agenda-day-date">{{ day.day_num }} {{ day.month_name }}{% if day.is_today %} · {{ t('sc.today') }}{% endif %}</span>
+          </div>
+          <div class="agenda-day-body">
+            {% if day.entries %}
+              {% for item in day.entries %}
+              <div class="agenda-card2 {% if item.kind == 'live' %}agenda-card-live{% elif item.subject %}agenda-card-subj{% else %}agenda-card-neutral{% endif %}"
+                   {% if item.kind != 'live' and item.subject %}style="--subj: {{ SUBJECT_META[item.subject].color }};"{% endif %}>
+                <div class="agenda-card-main">
+                  <span class="agenda-card-time">{{ item.start_time }}–{{ item.end_time }}</span>
+                  <span class="agenda-card-title">{% if item.kind == 'live' %}<span class="agenda-live-dot"></span>{% endif %}{{ item.title }}</span>
+                  {% if item.kind == 'block' and item.repeat != 'none' %}
+                  <span class="agenda-repeat-badge">🔁 {{ t('sc.repeat_daily') if item.repeat == 'daily' else t('sc.repeat_weekly') }}</span>
+                  {% endif %}
+                </div>
+                {% if item.kind == 'block' %}
+                <details class="agenda-card-menu" id="block-menu-{{ item.id }}-{{ day.date }}">
+                  <summary aria-label="{{ t('ad.edit') }}">⋮</summary>
+                  <div class="agenda-card-menu-panel">
+                    <form method="post" action="{{ url_for('schedule_edit', bid=item.id) }}" class="aform-inline">
+                      <input type="hidden" name="week_offset" value="{{ week_offset }}">
+                      <div class="field-row">
+                        <label class="field"><span>{{ t('sc.day') }}</span>
+                          <input type="date" name="the_date" value="{{ item.the_date }}" required>
+                        </label>
+                        <label class="field"><span>{{ t('sc.from_time') }}</span>
+                          <input type="time" name="start_time" value="{{ item.start_time }}" required>
+                        </label>
+                        <label class="field"><span>{{ t('sc.to_time') }}</span>
+                          <input type="time" name="end_time" value="{{ item.end_time }}" required>
+                        </label>
+                      </div>
+                      <div class="field-row">
+                        <label class="field"><span>{{ t('sc.subject_optional') }}</span>
+                          <select name="subject">
+                            <option value="" {% if not item.subject %}selected{% endif %}>{{ t('sc.no_selection') }}</option>
+                            {% for code, name in SUBJECTS %}<option value="{{ code }}" {% if item.subject == code %}selected{% endif %}>{{ name }}</option>{% endfor %}
+                          </select>
+                        </label>
+                        <label class="field"><span>{{ t('sc.note_optional') }}</span>
+                          <input type="text" name="note" value="{{ item.note or '' }}" placeholder="{{ t('sc.note_ph') }}">
+                        </label>
+                      </div>
+                      <div class="field">
+                        <span>{{ t('sc.repeat_label') }}</span>
+                        <div class="repeat-chips">
+                          <label class="repeat-chip"><input type="radio" name="repeat" value="none" {% if item.repeat == 'none' %}checked{% endif %}> {{ t('sc.repeat_none') }}</label>
+                          <label class="repeat-chip"><input type="radio" name="repeat" value="daily" {% if item.repeat == 'daily' %}checked{% endif %}> {{ t('sc.repeat_daily') }}</label>
+                          <label class="repeat-chip"><input type="radio" name="repeat" value="weekly" {% if item.repeat == 'weekly' %}checked{% endif %}> {{ t('sc.repeat_weekly') }}</label>
+                        </div>
+                      </div>
+                      <button class="btn btn-primary btn-xs">{{ t('ad.save') }}</button>
+                    </form>
+                    <form method="post" action="{{ url_for('schedule_delete', bid=item.id) }}" class="inline-form">
+                      <input type="hidden" name="week_offset" value="{{ week_offset }}">
+                      <button class="btn btn-lock btn-xs">{{ t('sc.delete') }}</button>
+                    </form>
+                  </div>
+                </details>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+              <p class="muted agenda-day-empty">{{ t('sc.no_items_day') }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <form class="card aform sched-form" method="post" action="{{ url_for('schedule_add') }}">
+      <h3>{{ t('sc.add_block') }}</h3>
+      <input type="hidden" name="week_offset" value="{{ week_offset }}">
+      <div class="field-row">
+        <label class="field"><span>{{ t('sc.day') }}</span>
+          <input type="date" name="the_date" min="{{ today }}" required>
+        </label>
+        <label class="field"><span>{{ t('sc.from_time') }}</span>
+          <input type="time" name="start_time" required>
+        </label>
+        <label class="field"><span>{{ t('sc.to_time') }}</span>
+          <input type="time" name="end_time" required>
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field"><span>{{ t('sc.subject_optional') }}</span>
+          <select name="subject">
+            <option value="">{{ t('sc.no_selection') }}</option>
+            {% for code, name in SUBJECTS %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field"><span>{{ t('sc.note_optional') }}</span>
+          <input type="text" name="note" placeholder="{{ t('sc.note_ph') }}">
+        </label>
+      </div>
+      <div class="field">
+        <span>{{ t('sc.repeat_label') }}</span>
+        <div class="repeat-chips">
+          <label class="repeat-chip"><input type="radio" name="repeat" value="none" checked> {{ t('sc.repeat_none') }}</label>
+          <label class="repeat-chip"><input type="radio" name="repeat" value="daily"> {{ t('sc.repeat_daily') }}</label>
+          <label class="repeat-chip"><input type="radio" name="repeat" value="weekly"> {{ t('sc.repeat_weekly') }}</label>
+        </div>
+      </div>
+      <button class="btn btn-primary">{{ t('sc.add_to_schedule') }}</button>
+    </form>
+
+  </div>
+</section>
+{% endblock %}

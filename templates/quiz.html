@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ t('qz.title') }} — {{ course_title(c.level_code, c.subject, c.title) }}{% endblock %}
+
+{% block content %}
+<section class="page-head head-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">
+  <div class="container">
+    <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }} — {{ LEVEL_MAP[c.level_code] }}</span>
+    <h1>{{ t('qz.title') }}</h1>
+    <p class="section-sub">{{ course_title(c.level_code, c.subject, c.title) }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    {% if result %}
+    <div class="card quiz-result-card">
+      <h2>{{ t('qz.result_title') }}</h2>
+      <div class="quiz-score">{{ t('qz.result_score', score=result.score, total=result.total) }}</div>
+    </div>
+
+    <div class="quiz-list">
+      {% for q in questions %}
+      <div class="card quiz-q">
+        <p class="quiz-q-text">{{ loop.index }}. {{ q.question }}</p>
+        <ul class="quiz-opts">
+          {% for o in q.options %}
+          <li class="quiz-opt-result
+                     {% if o.id == q.correct_id %}quiz-opt-correct{% endif %}
+                     {% if o.id == q.chosen_id and o.id != q.correct_id %}quiz-opt-wrong{% endif %}">
+            {{ o.option_text }}
+            {% if o.id == q.chosen_id and o.id == q.correct_id %}<span class="quiz-mark">{{ t('qz.your_answer_correct') }}</span>{% endif %}
+            {% if o.id == q.chosen_id and o.id != q.correct_id %}<span class="quiz-mark">{{ t('qz.your_answer_wrong') }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="quiz-actions">
+      <a class="btn btn-primary" href="{{ url_for('course_quiz', cid=c.id) }}">{{ t('qz.retake') }}</a>
+      <a class="muted-link" href="{{ url_for('course', cid=c.id) }}">{{ t('qz.back_to_course') }}</a>
+    </div>
+
+    {% else %}
+
+    {% if not quiz or not questions %}
+    <div class="empty-state card">
+      <h3>{{ t('qz.not_ready') }}</h3>
+      <a class="muted-link" href="{{ url_for('course', cid=c.id) }}">{{ t('qz.back_to_course') }}</a>
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('course_quiz_submit', cid=c.id) }}" class="quiz-list">
+      {% for q in questions %}
+      <div class="card quiz-q">
+        <p class="quiz-q-text">{{ loop.index }}. {{ q.question }}</p>
+        <ul class="quiz-opts">
+          {% for o in q.options %}
+          <li>
+            <label class="quiz-opt-label">
+              <input type="radio" name="q{{ q.id }}" value="{{ o.id }}" required>
+              <span>{{ o.option_text }}</span>
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+      <button class="btn btn-primary btn-lg" type="submit">{{ t('qz.submit') }}</button>
+    </form>
+    {% endif %}
+
+    {% if my_attempts %}
+    <h2 class="list-title">{{ t('qz.your_attempts') }}</h2>
+    <div class="card table-card">
+      <table class="atable">
+        <thead><tr><th>{{ t('ad.date_col') }}</th><th>{{ t('qz.result_title') }}</th></tr></thead>
+        <tbody>
+        {% for a in my_attempts %}
+          <tr><td><small>{{ a.created_at }}</small></td><td class="num">{{ t('qz.result_score', score=a.score, total=a.total) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

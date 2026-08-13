@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nt.title') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <span class="eyebrow">{{ t('db.student_space') }}</span>
+    <h1>🔔 {{ t('nt.title') }}</h1>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow">
+
+    {% if rows %}
+    <div class="notif-list">
+      {% for n in rows %}
+      <div class="card notif-item {% if not n.read_at %}notif-new{% endif %}">
+        <div class="notif-head">
+          <b>{{ n.title }}</b>
+          {% if not n.read_at %}<span class="chip chip-free">{{ t('nt.new_badge') }}</span>{% endif %}
+        </div>
+        <p>{{ n.body }}</p>
+        <small class="muted">{{ n.created_at }}</small>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <h3>{{ t('nt.empty_title') }}</h3>
+      <p>{{ t('nt.empty_p') }}</p>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

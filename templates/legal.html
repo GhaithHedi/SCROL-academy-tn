@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{% if page == 'terms' %}{{ t('legal.terms_title') }}{% else %}{{ t('legal.privacy_title') }}{% endif %}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <h1>{% if page == 'terms' %}{{ t('legal.terms_title') }}{% else %}{{ t('legal.privacy_title') }}{% endif %}</h1>
+    <p class="section-sub">{{ t('legal.demo_note') }}</p>
+  </div>
+</section>
+
+<section class="section section-flush">
+  <div class="container container-narrow legal-body card">
+    {% if page == 'terms' %}
+      <h3>{{ t('legal.t1_h') }}</h3>
+      <p>{{ t('legal.t1_p') }}</p>
+      <h3>{{ t('legal.t2_h') }}</h3>
+      <p>{{ t('legal.t2_p') }}</p>
+      <h3>{{ t('legal.t3_h') }}</h3>
+      <p>{{ t('legal.t3_p') }}</p>
+      <h3>{{ t('legal.t4_h') }}</h3>
+      <p>{{ t('legal.t4_p') }}</p>
+    {% else %}
+      <h3>{{ t('legal.p1_h') }}</h3>
+      <p>{{ t('legal.p1_p') }}</p>
+      <h3>{{ t('legal.p2_h') }}</h3>
+      <p>{{ t('legal.p2_p') }}</p>
+      <h3>{{ t('legal.p3_h') }}</h3>
+      <p>{{ t('legal.p3_p') }}</p>
+      <h3>{{ t('legal.p4_h') }}</h3>
+      <p>{{ t('legal.p4_p') }}</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
