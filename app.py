@@ -6,6 +6,7 @@ Run:  pip install flask   →   python app.py   →   http://localhost:5000
 """
 import os
 import re
+import secrets
 import sqlite3
 import datetime as dt
 import threading
@@ -20,6 +21,11 @@ try:
     import anthropic
 except ImportError:
     anthropic = None
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,6 +60,79 @@ AI_MODEL = "claude-sonnet-5"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ai_client = (anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
              if anthropic and ANTHROPIC_API_KEY else None)
+
+# ----------------------------------------------------------------------------
+# Email verification (Brevo) + bot protection (Cloudflare Turnstile) —
+# set BREVO_API_KEY / TURNSTILE_SECRET_KEY in .env. TURNSTILE_SITE_KEY is
+# public (embedded in the registration page HTML), not a secret.
+# ----------------------------------------------------------------------------
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "scrolacademy@gmail.com")
+BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "SCROL Academy")
+TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "")
+TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY")
+VERIFY_CODE_TTL_MIN = 15
+VERIFY_RESEND_COOLDOWN_SEC = 60
+
+
+def generate_verify_code():
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def send_verification_email(to_email, to_name, code):
+    """Send a verification-code email via the Brevo transactional API.
+    Returns True on success; failures are logged but never raised, so a
+    down email provider doesn't break registration/login."""
+    if not BREVO_API_KEY or not requests:
+        print(f" * [email disabled] verification code for {to_email}: {code}")
+        return False
+    try:
+        resp = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+            json={
+                "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+                "to": [{"email": to_email, "name": to_name}],
+                "subject": f"{code} — رمز التحقق من بريدك | أكاديمية SCROL",
+                "htmlContent": (
+                    f"<div dir='rtl' style='font-family:sans-serif;font-size:16px;line-height:1.7'>"
+                    f"<p>مرحبًا {to_name}،</p>"
+                    f"<p>رمز التحقق من بريدك الإلكتروني في أكاديمية SCROL هو:</p>"
+                    f"<p style='font-size:32px;font-weight:bold;letter-spacing:6px'>{code}</p>"
+                    f"<p>هذا الرمز صالح لمدة {VERIFY_CODE_TTL_MIN} دقيقة. "
+                    f"إن لم تطلب هذا الرمز يمكنك تجاهل هذه الرسالة.</p></div>"
+                ),
+            },
+            timeout=10,
+        )
+        if resp.status_code >= 300:
+            print(f" * [email error] Brevo {resp.status_code}: {resp.text[:300]}")
+            return False
+        return True
+    except requests.RequestException as e:
+        print(f" * [email error] {e}")
+        return False
+
+
+def verify_turnstile(token, remote_ip=None):
+    """Validate a Cloudflare Turnstile response token server-side.
+    Fails closed (rejects) if misconfigured or unreachable — a broken
+    CAPTCHA should never silently let registrations through unchecked."""
+    if not TURNSTILE_SECRET_KEY or not requests:
+        return False
+    if not token:
+        return False
+    try:
+        payload = {"secret": TURNSTILE_SECRET_KEY, "response": token}
+        if remote_ip:
+            payload["remoteip"] = remote_ip
+        resp = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data=payload, timeout=10)
+        return bool(resp.json().get("success"))
+    except requests.RequestException as e:
+        print(f" * [turnstile error] {e}")
+        return False
 
 # ----------------------------------------------------------------------------
 # Static configuration
@@ -182,6 +261,10 @@ CREATE TABLE IF NOT EXISTS users (
     sub_plan      TEXT,
     sub_until     TEXT,
     sub_subject   TEXT,
+    email_verified INTEGER NOT NULL DEFAULT 1,
+    verify_code    TEXT,
+    verify_expires TEXT,
+    verify_sent_at TEXT,
     created_at    TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS courses (
@@ -534,6 +617,12 @@ def init_db():
     if "subject" not in pm_cols:
         db.execute("ALTER TABLE payments ADD COLUMN subject TEXT")
         db.commit()
+    if "email_verified" not in u_cols:
+        db.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1")
+        db.execute("ALTER TABLE users ADD COLUMN verify_code TEXT")
+        db.execute("ALTER TABLE users ADD COLUMN verify_expires TEXT")
+        db.execute("ALTER TABLE users ADD COLUMN verify_sent_at TEXT")
+        db.commit()
     if db.execute("SELECT COUNT(*) FROM levels").fetchone()[0] == 0:
         for i, code in enumerate(LEVEL_CODES):
             names = LEVEL_NAMES[code]
@@ -857,6 +946,17 @@ TR = {
                             "fr": "Content de vous revoir, {name} 👋"},
     "flash.bad_credentials": {"ar": "البريد أو كلمة المرور غير صحيحة.",
                                "fr": "Email ou mot de passe incorrect."},
+    "flash.captcha_failed": {"ar": "لم نتمكن من التحقق أنك لست روبوتًا — أعد المحاولة.",
+                              "fr": "Impossible de vérifier que vous n'êtes pas un robot — réessayez."},
+    "flash.verify_needed": {"ar": "تحقق من بريدك أولًا — أرسلنا لك رمزًا.",
+                             "fr": "Vérifiez d'abord votre email — nous vous avons envoyé un code."},
+    "flash.verify_code_wrong": {"ar": "الرمز غير صحيح.", "fr": "Le code est incorrect."},
+    "flash.verify_code_expired": {"ar": "انتهت صلاحية الرمز — اطلب رمزًا جديدًا.",
+                                   "fr": "Le code a expiré — demandez-en un nouveau."},
+    "flash.verify_resend_wait": {"ar": "انتظر قليلًا قبل طلب رمز جديد.",
+                                  "fr": "Attendez un instant avant de redemander un code."},
+    "flash.verify_resend_ok": {"ar": "أرسلنا لك رمزًا جديدًا. 📩",
+                                "fr": "Un nouveau code vous a été envoyé. 📩"},
     "flash.logged_out": {"ar": "خرجت من حسابك. إلى اللقاء!",
                           "fr": "Vous êtes déconnecté(e). À bientôt !"},
     "flash.subscribers_only": {"ar": "هذا الدرس متاح للمشتركين فقط — الدرس الأول من كل محور مجاني.",
@@ -1084,6 +1184,16 @@ TR = {
     "reg.submit": {"ar": "أنشئ حسابي المجاني", "fr": "Créer mon compte gratuit"},
     "reg.have_account": {"ar": "عندك حساب؟", "fr": "Vous avez déjà un compte ?"},
     "reg.login_link": {"ar": "سجّل الدخول", "fr": "Connectez-vous"},
+
+    # verify_email.html
+    "ver.title": {"ar": "تحقق من بريدك", "fr": "Vérifiez votre email"},
+    "ver.heading": {"ar": "خطوة أخيرة", "fr": "Dernière étape"},
+    "ver.sent_to": {"ar": "أرسلنا رمزًا من 6 أرقام إلى", "fr": "Nous avons envoyé un code à 6 chiffres à"},
+    "ver.code_label": {"ar": "رمز التحقق", "fr": "Code de vérification"},
+    "ver.submit": {"ar": "تأكيد", "fr": "Confirmer"},
+    "ver.no_code": {"ar": "ما وصلكش الرمز؟", "fr": "Vous n'avez pas reçu le code ?"},
+    "ver.resend": {"ar": "أعد الإرسال", "fr": "Renvoyer"},
+    "ver.back": {"ar": "← الرجوع لإنشاء الحساب", "fr": "← Retour à l'inscription"},
 
     # login.html
     "log.title": {"ar": "تسجيل الدخول", "fr": "Connexion"},
@@ -1735,7 +1845,7 @@ def inject_globals():
                 unread_count=unread_notifications_count(),
                 pending_payments=pending_payments_count(),
                 lang=lang, text_dir="rtl" if lang == "ar" else "ltr",
-                theme=get_theme())
+                theme=get_theme(), TURNSTILE_SITE_KEY=TURNSTILE_SITE_KEY)
 
 
 # ----------------------------------------------------------------------------
@@ -1822,6 +1932,7 @@ def register():
         phone = request.form.get("phone", "").strip()
         level = request.form.get("level", "")
         pw = request.form.get("password", "")
+        captcha_token = request.form.get("cf-turnstile-response", "")
         if not name or not email or not pw:
             flash(t("flash.register_required_fields"), "error")
         elif len(pw) < 6:
@@ -1830,16 +1941,82 @@ def register():
             flash(t("flash.choose_level"), "error")
         elif query("SELECT id FROM users WHERE email=?", (email,), one=True):
             flash(t("flash.email_taken"), "error")
+        elif not verify_turnstile(captcha_token, request.remote_addr):
+            flash(t("flash.captcha_failed"), "error")
         else:
+            now = dt.datetime.now()
+            code = generate_verify_code()
             uid = execute(
                 "INSERT INTO users(name,email,phone,password_hash,level_code,"
-                "created_at) VALUES(?,?,?,?,?,?)",
-                (name, email, phone, generate_password_hash(pw), level,
-                 dt.datetime.now().strftime("%Y-%m-%d %H:%M")))
-            session["uid"] = uid
-            flash(t("flash.welcome_new", name=name), "ok")
-            return redirect(url_for("courses"))
+                "email_verified,verify_code,verify_expires,verify_sent_at,created_at) "
+                "VALUES(?,?,?,?,?,0,?,?,?,?)",
+                (name, email, phone, generate_password_hash(pw), level, code,
+                 (now + dt.timedelta(minutes=VERIFY_CODE_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S"),
+                 now.strftime("%Y-%m-%d %H:%M:%S"),
+                 now.strftime("%Y-%m-%d %H:%M")))
+            send_verification_email(email, name, code)
+            session["pending_uid"] = uid
+            return redirect(url_for("verify_email"))
     return render_template("register.html")
+
+
+@app.route("/verify-email", methods=["GET", "POST"])
+def verify_email():
+    pending_uid = session.get("pending_uid")
+    if not pending_uid:
+        return redirect(url_for("register"))
+    user = query("SELECT * FROM users WHERE id=?", (pending_uid,), one=True)
+    if not user or user["email_verified"]:
+        session.pop("pending_uid", None)
+        return redirect(url_for("register"))
+
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        try:
+            expired = dt.datetime.strptime(
+                user["verify_expires"], "%Y-%m-%d %H:%M:%S") < dt.datetime.now()
+        except (TypeError, ValueError):
+            expired = True
+        if not code or not user["verify_code"] or code != user["verify_code"]:
+            flash(t("flash.verify_code_wrong"), "error")
+        elif expired:
+            flash(t("flash.verify_code_expired"), "error")
+        else:
+            execute("UPDATE users SET email_verified=1, verify_code=NULL, "
+                    "verify_expires=NULL, verify_sent_at=NULL WHERE id=?", (user["id"],))
+            session.pop("pending_uid", None)
+            session["uid"] = user["id"]
+            flash(t("flash.welcome_new", name=user["name"]), "ok")
+            return redirect(url_for("courses"))
+    return render_template("verify_email.html", pending_email=user["email"])
+
+
+@app.route("/verify-email/resend", methods=["POST"])
+def verify_email_resend():
+    pending_uid = session.get("pending_uid")
+    if not pending_uid:
+        return redirect(url_for("register"))
+    user = query("SELECT * FROM users WHERE id=?", (pending_uid,), one=True)
+    if not user or user["email_verified"]:
+        session.pop("pending_uid", None)
+        return redirect(url_for("register"))
+
+    now = dt.datetime.now()
+    if user["verify_sent_at"]:
+        try:
+            last_sent = dt.datetime.strptime(user["verify_sent_at"], "%Y-%m-%d %H:%M:%S")
+            if (now - last_sent).total_seconds() < VERIFY_RESEND_COOLDOWN_SEC:
+                flash(t("flash.verify_resend_wait"), "warn")
+                return redirect(url_for("verify_email"))
+        except ValueError:
+            pass
+    code = generate_verify_code()
+    execute("UPDATE users SET verify_code=?, verify_expires=?, verify_sent_at=? WHERE id=?",
+            (code, (now + dt.timedelta(minutes=VERIFY_CODE_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S"),
+             now.strftime("%Y-%m-%d %H:%M:%S"), user["id"]))
+    send_verification_email(user["email"], user["name"], code)
+    flash(t("flash.verify_resend_ok"), "ok")
+    return redirect(url_for("verify_email"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1851,6 +2028,10 @@ def login():
         pw = request.form.get("password", "")
         user = query("SELECT * FROM users WHERE email=?", (email,), one=True)
         if user and check_password_hash(user["password_hash"], pw):
+            if not user["email_verified"]:
+                session["pending_uid"] = user["id"]
+                flash(t("flash.verify_needed"), "warn")
+                return redirect(url_for("verify_email"))
             session["uid"] = user["id"]
             flash(t("flash.welcome_back", name=user["name"].split()[0]), "ok")
             nxt = request.args.get("next")

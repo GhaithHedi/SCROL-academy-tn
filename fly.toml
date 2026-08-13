@@ -8,6 +8,7 @@ primary_region = "cdg"
 
 [env]
   DB_PATH = "/data/academy.db"
+  TURNSTILE_SITE_KEY = "0x4AAAAAAEPHrLjdnUI3-P2d"
 
 [[mounts]]
   source = "scrol_data"

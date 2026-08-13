@@ -1008,6 +1008,7 @@ html[dir="rtl"] .chat-compose { padding: 8px 16px 8px 8px; }
   gap: 12px; padding: 24px; text-align: center;
 }
 .ai-chat-locked p { color: var(--ink-soft); font-size: .92rem; line-height: 1.6; margin: 0; }
+.verify-code-input { font-size: 1.6rem; letter-spacing: 10px; text-align: center; }
 
 @media (max-width: 480px) {
   .ai-chat-widget { bottom: 14px; inset-inline-end: 14px; }

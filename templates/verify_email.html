@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ver.title') }}{% endblock %}
+
+{% block content %}
+<section class="auth-wrap">
+  <div class="container auth-grid">
+    <div class="auth-side reveal">
+      <h1>{{ t('ver.heading') }}</h1>
+      <ul class="auth-perks">
+        <li>{{ t('reg.perk1') }}</li>
+        <li>{{ t('reg.perk2') }}</li>
+        <li>{{ t('reg.perk3') }}</li>
+      </ul>
+    </div>
+
+    <form class="card auth-card reveal delay-1" method="post" action="{{ url_for('verify_email') }}">
+      <h2>{{ t('ver.title') }}</h2>
+      <p class="muted">{{ t('ver.sent_to') }} <b dir="ltr">{{ pending_email }}</b></p>
+
+      <label class="field">
+        <span>{{ t('ver.code_label') }}</span>
+        <input type="text" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+               dir="ltr" autofocus placeholder="000000" class="verify-code-input">
+      </label>
+
+      <button class="btn btn-primary btn-block btn-lg" type="submit">{{ t('ver.submit') }}</button>
+    </form>
+  </div>
+
+  <div class="container" style="text-align:center; margin-top: 16px;">
+    <form method="post" action="{{ url_for('verify_email_resend') }}" style="display:inline;">
+      <span class="muted">{{ t('ver.no_code') }}</span>
+      <button class="muted-link" type="submit" style="background:none; border:none; cursor:pointer; text-decoration:underline;">{{ t('ver.resend') }}</button>
+    </form>
+    <p><a class="muted-link" href="{{ url_for('register') }}">{{ t('ver.back') }}</a></p>
+  </div>
+</section>
+{% endblock %}

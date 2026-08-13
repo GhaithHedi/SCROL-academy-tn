@@ -48,9 +48,16 @@
         <input type="password" name="password" required minlength="6" placeholder="••••••••">
       </label>
 
+      {% if TURNSTILE_SITE_KEY %}
+      <div class="cf-turnstile" data-sitekey="{{ TURNSTILE_SITE_KEY }}" data-theme="{{ theme }}"></div>
+      {% endif %}
+
       <button class="btn btn-primary btn-block btn-lg" type="submit">{{ t('reg.submit') }}</button>
       <p class="auth-alt">{{ t('reg.have_account') }} <a href="{{ url_for('login') }}">{{ t('reg.login_link') }}</a></p>
     </form>
   </div>
 </section>
+{% if TURNSTILE_SITE_KEY %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}
