@@ -344,7 +344,7 @@
     pause: {{ t('pomo.pause')|tojson }},
     resume: {{ t('pomo.resume')|tojson }}
   };
-  window.POMODORO_FORCE_SHOW = {{ (request.endpoint == 'courses')|tojson }};
+  window.POMODORO_FORCE_SHOW = {{ (request.endpoint in ('courses', 'course', 'watch', 'course_quiz'))|tojson }};
 </script>
 <div class="pomodoro-widget" id="pomodoroWidget" hidden>
   <button class="pomodoro-fab" id="pomodoroFab" aria-label="{{ t('pomo.widget_title') }}" aria-expanded="false">🍅</button>
