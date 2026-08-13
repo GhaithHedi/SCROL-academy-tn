@@ -1355,6 +1355,21 @@ TR = {
     "tour.replay_sub": {"ar": "أعد مشاهدة جولة التعريف بالمنصّة في أي وقت.", "fr": "Revoyez à tout moment la visite guidée de la plateforme."},
     "tour.replay_btn": {"ar": "🎯 إعادة عرض الجولة", "fr": "🎯 Revoir la visite"},
 
+    # first-visit welcome tour for logged-out guests (base.html, homepage only)
+    "gtour.step1_title": {"ar": "🎓 مرحبًا بك في أكاديمية SCROL", "fr": "🎓 Bienvenue sur SCROL Academy"},
+    "gtour.step1_body": {"ar": "منصّة تونسية لتعلّم الرياضيات والفيزياء، من السابعة أساسي إلى البكالوريا، بدروس فيديو ومتابعة أسبوعية.",
+                          "fr": "Une plateforme tunisienne pour apprendre les maths et la physique, de la 7ème année de base au Bac, avec des cours vidéo et un suivi hebdomadaire."},
+    "gtour.step2_title": {"ar": "🎁 أول درس مجاني في كل محور", "fr": "🎁 Le premier cours de chaque chapitre est gratuit"},
+    "gtour.step2_body": {"ar": "جرّب المنصّة بدون التزام — أول درس من كل محور متاح مجانًا لكل الزوار، حتى قبل إنشاء حساب.",
+                          "fr": "Essayez la plateforme sans engagement — le premier cours de chaque chapitre est accessible gratuitement, même avant de créer un compte."},
+    "gtour.step3_title": {"ar": "🔴 حصص مباشرة ومجتمع تفاعلي", "fr": "🔴 Sessions en direct et communauté active"},
+    "gtour.step3_body": {"ar": "احضر حصصًا مباشرة أسبوعية، وتواصل مع أستاذك وزملائك في دردشة كل مستوى.",
+                          "fr": "Assistez à des sessions en direct chaque semaine, et échangez avec votre professeur et vos camarades dans le chat de votre niveau."},
+    "gtour.step4_title": {"ar": "🚀 ابدأ رحلتك الآن", "fr": "🚀 Commencez votre parcours dès maintenant"},
+    "gtour.step4_body": {"ar": "أنشئ حسابك المجاني في أقل من دقيقة، واختر مستواك الدراسي لتصل مباشرة إلى محتواك.",
+                          "fr": "Créez votre compte gratuit en moins d'une minute, choisissez votre niveau, et accédez directement à votre contenu."},
+    "gtour.cta_btn": {"ar": "إنشاء حساب مجاني", "fr": "Créer un compte gratuit"},
+
     # chat.html
     "ct.title": {"ar": "الدردشة", "fr": "Chat"},
     "ct.level_eyebrow": {"ar": "مستوى {level}", "fr": "Niveau {level}"},

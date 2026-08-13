@@ -309,11 +309,11 @@
 {% if g.user and g.user.role == 'student' %}
 <script>
   window.ONBOARDING_STEPS = [
-    { title: {{ t('tour.step1_title')|tojson }}, body: {{ t('tour.step1_body')|tojson }} },
-    { title: {{ t('tour.step2_title')|tojson }}, body: {{ t('tour.step2_body')|tojson }} },
-    { title: {{ t('tour.step3_title')|tojson }}, body: {{ t('tour.step3_body')|tojson }} },
-    { title: {{ t('tour.step4_title')|tojson }}, body: {{ t('tour.step4_body')|tojson }} },
-    { title: {{ t('tour.step5_title')|tojson }}, body: {{ t('tour.step5_body')|tojson }} }
+    { title: {{ t('tour.step1_title')|tojson }}, body: {{ t('tour.step1_body')|tojson }}, page: {{ url_for('dashboard')|tojson }}, scrollTo: null },
+    { title: {{ t('tour.step2_title')|tojson }}, body: {{ t('tour.step2_body')|tojson }}, page: {{ url_for('courses')|tojson }}, scrollTo: null },
+    { title: {{ t('tour.step3_title')|tojson }}, body: {{ t('tour.step3_body')|tojson }}, page: {{ url_for('live')|tojson }}, scrollTo: null },
+    { title: {{ t('tour.step4_title')|tojson }}, body: {{ t('tour.step4_body')|tojson }}, page: {{ url_for('schedule')|tojson }}, scrollTo: null },
+    { title: {{ t('tour.step5_title')|tojson }}, body: {{ t('tour.step5_body')|tojson }}, page: {{ url_for('dashboard')|tojson }}, scrollTo: ".progress-grid" }
   ];
   window.ONBOARDING_STRINGS = {
     stepOf: {{ t('tour.step_of')|tojson }},
@@ -387,6 +387,35 @@
       <input type="text" id="aiChatInput" placeholder="{{ t('ai.placeholder') }}" autocomplete="off" maxlength="1000">
       <button type="submit" class="btn btn-primary btn-sm">{{ t('ai.send') }}</button>
     </form>
+  </div>
+</div>
+{% endif %}
+
+{% if not g.user %}
+<script>
+  window.GUEST_TOUR_STEPS = [
+    { title: {{ t('gtour.step1_title')|tojson }}, body: {{ t('gtour.step1_body')|tojson }} },
+    { title: {{ t('gtour.step2_title')|tojson }}, body: {{ t('gtour.step2_body')|tojson }} },
+    { title: {{ t('gtour.step3_title')|tojson }}, body: {{ t('gtour.step3_body')|tojson }} },
+    { title: {{ t('gtour.step4_title')|tojson }}, body: {{ t('gtour.step4_body')|tojson }} }
+  ];
+  window.GUEST_TOUR_STRINGS = {
+    next: {{ t('tour.next')|tojson }},
+    cta: {{ t('gtour.cta_btn')|tojson }},
+    registerUrl: {{ url_for('register')|tojson }}
+  };
+  window.GUEST_TOUR_AUTO_CHECK = {{ (request.endpoint == 'index')|tojson }};
+</script>
+<div class="onboarding-overlay" id="guestTourOverlay" hidden>
+  <div class="onboarding-modal">
+    <button class="onboarding-skip" id="guestTourSkip" aria-label="{{ t('tour.skip') }}">{{ t('tour.skip') }} ✕</button>
+    <h3 id="guestTourTitle"></h3>
+    <p id="guestTourBody"></p>
+    <div class="onboarding-dots" id="guestTourDots"></div>
+    <div class="onboarding-actions">
+      <button class="btn btn-outline btn-sm" id="guestTourPrev">{{ t('tour.prev') }}</button>
+      <button class="btn btn-primary btn-sm" id="guestTourNext"></button>
+    </div>
   </div>
 </div>
 {% endif %}

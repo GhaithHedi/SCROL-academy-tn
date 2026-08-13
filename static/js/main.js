@@ -382,11 +382,17 @@
     render();
   })();
 
-  /* ---- first-visit onboarding tour ---- */
+  /* ---- first-visit onboarding tour (students) ----
+     Each step can point at a different page (course list, live rooms,
+     planning...). Clicking "next"/"previous" navigates there for real —
+     progress (which step we're on) rides across the page reload in
+     sessionStorage, and is picked up again on load to reopen the modal
+     at the right step, optionally scrolling to a specific section. */
   (function () {
     var overlay = document.getElementById("onboardingOverlay");
     if (!overlay) return; // not a student page
     var SEEN_KEY = "tafawok_onboarding_seen";
+    var PROGRESS_KEY = "tafawok_onboarding_progress";
     var steps = window.ONBOARDING_STEPS || [];
     var STR = window.ONBOARDING_STRINGS || {};
     var titleEl = document.getElementById("onboardingTitle");
@@ -397,11 +403,8 @@
     var skipBtn = document.getElementById("onboardingSkip");
     var current = 0;
 
-    if (dotsEl && steps.length) {
-      steps.forEach(function () {
-        var dot = document.createElement("span");
-        dotsEl.appendChild(dot);
-      });
+    if (dotsEl && steps.length && !dotsEl.children.length) {
+      steps.forEach(function () { dotsEl.appendChild(document.createElement("span")); });
     }
 
     function renderStep() {
@@ -416,16 +419,106 @@
       nextBtn.textContent = current === steps.length - 1 ? STR.finish : STR.next;
     }
 
+    function saveProgress(step) {
+      try { sessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ active: true, step: step })); } catch (e) {}
+    }
+    function clearProgress() {
+      try { sessionStorage.removeItem(PROGRESS_KEY); } catch (e) {}
+    }
+
+    function goToStep(n) {
+      if (!steps[n]) return;
+      var targetPage = steps[n].page;
+      if (targetPage && window.location.pathname !== targetPage) {
+        saveProgress(n);
+        window.location.href = targetPage;
+        return;
+      }
+      current = n;
+      renderStep();
+      overlay.hidden = false;
+      if (steps[n].scrollTo) {
+        var el = document.querySelector(steps[n].scrollTo);
+        if (el) setTimeout(function () { el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 200);
+      }
+    }
+
+    function close(markSeen) {
+      overlay.hidden = true;
+      clearProgress();
+      if (markSeen) {
+        try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+      }
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        if (current > 0) goToStep(current - 1);
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        if (current < steps.length - 1) goToStep(current + 1);
+        else close(true);
+      });
+    }
+    if (skipBtn) skipBtn.addEventListener("click", function () { close(true); });
+
+    window.replayOnboarding = function () { clearProgress(); goToStep(0); };
+
+    var progress = null;
+    try { progress = JSON.parse(sessionStorage.getItem(PROGRESS_KEY)); } catch (e) {}
+    if (progress && progress.active && steps[progress.step]) {
+      goToStep(progress.step);
+    } else if (window.ONBOARDING_AUTO_CHECK) {
+      var alreadySeen = false;
+      try { alreadySeen = localStorage.getItem(SEEN_KEY) === "1"; } catch (e) {}
+      if (!alreadySeen) goToStep(0);
+    }
+  })();
+
+  /* ---- first-visit welcome tour (logged-out guests, homepage) ---- */
+  (function () {
+    var overlay = document.getElementById("guestTourOverlay");
+    if (!overlay) return; // not a guest page
+    var SEEN_KEY = "tafawok_guest_tour_seen";
+    var steps = window.GUEST_TOUR_STEPS || [];
+    var STR = window.GUEST_TOUR_STRINGS || {};
+    var titleEl = document.getElementById("guestTourTitle");
+    var bodyEl = document.getElementById("guestTourBody");
+    var dotsEl = document.getElementById("guestTourDots");
+    var prevBtn = document.getElementById("guestTourPrev");
+    var nextBtn = document.getElementById("guestTourNext");
+    var skipBtn = document.getElementById("guestTourSkip");
+    var current = 0;
+
+    if (dotsEl && steps.length) {
+      steps.forEach(function () { dotsEl.appendChild(document.createElement("span")); });
+    }
+
+    function renderStep() {
+      if (!steps.length) return;
+      var step = steps[current];
+      titleEl.textContent = step.title;
+      bodyEl.textContent = step.body;
+      Array.prototype.forEach.call(dotsEl.children, function (dot, i) {
+        dot.classList.toggle("onboarding-dot-on", i === current);
+      });
+      prevBtn.disabled = current === 0;
+      var isLast = current === steps.length - 1;
+      nextBtn.textContent = isLast ? STR.cta : STR.next;
+      nextBtn.classList.toggle("btn-live", isLast);
+    }
+
+    function close() {
+      overlay.hidden = true;
+      try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+    }
+
     function open() {
       current = 0;
       renderStep();
       overlay.hidden = false;
-    }
-    function close(markSeen) {
-      overlay.hidden = true;
-      if (markSeen) {
-        try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
-      }
     }
 
     if (prevBtn) {
@@ -436,14 +529,12 @@
     if (nextBtn) {
       nextBtn.addEventListener("click", function () {
         if (current < steps.length - 1) { current++; renderStep(); }
-        else close(true);
+        else { close(); window.location.href = STR.registerUrl; }
       });
     }
-    if (skipBtn) skipBtn.addEventListener("click", function () { close(true); });
+    if (skipBtn) skipBtn.addEventListener("click", close);
 
-    window.replayOnboarding = open;
-
-    if (window.ONBOARDING_AUTO_CHECK) {
+    if (window.GUEST_TOUR_AUTO_CHECK) {
       var alreadySeen = false;
       try { alreadySeen = localStorage.getItem(SEEN_KEY) === "1"; } catch (e) {}
       if (!alreadySeen) open();
