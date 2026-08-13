@@ -541,6 +541,68 @@
     }
   })();
 
+  /* ---- pricing packs: duration toggle + subject picker (pricing.html) ---- */
+  (function () {
+    var cards = document.querySelectorAll(".pack-card");
+    if (!cards.length) return;
+    var PRICES = window.PACK_PRICES || { all: {}, subject: {} };
+    var STR = window.PACK_STRINGS || {};
+
+    function formatPeriod(months) {
+      if (window.PACK_LANG === "fr") return months + " " + STR.month1;
+      var word = months === 1 ? STR.month1 : (months <= 10 ? STR.monthFew : STR.monthMany);
+      return STR.forDuration + " " + months + " " + word;
+    }
+
+    function buildCheckoutUrl(plan, subject) {
+      var url = (window.PACK_CHECKOUT_BASE || "").replace("__PLAN__", plan);
+      if (subject) url += "?subject=" + encodeURIComponent(subject);
+      return url;
+    }
+
+    cards.forEach(function (card) {
+      var kind = card.getAttribute("data-pack"); // "all" | "subject"
+      var priceEl = card.querySelector("[data-pack-price]");
+      var periodEl = card.querySelector("[data-pack-period]");
+      var ctaEl = card.querySelector("[data-pack-cta]");
+      var durBtns = card.querySelectorAll(".pack-dur-btn");
+      var subjectChips = card.querySelectorAll(".pack-subject-chip");
+      var currentPlan = "term";
+      var currentSubject = subjectChips.length ? subjectChips[0].getAttribute("data-subject") : null;
+
+      function render() {
+        var tierPrices = PRICES[kind] || {};
+        var data = tierPrices[currentPlan];
+        if (!data) return;
+        if (priceEl) priceEl.textContent = data.price;
+        if (periodEl) periodEl.textContent = formatPeriod(data.months);
+        if (ctaEl && window.PACK_LOGGED_IN) {
+          ctaEl.href = buildCheckoutUrl(currentPlan, kind === "subject" ? currentSubject : null);
+        }
+      }
+
+      durBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          durBtns.forEach(function (b) { b.classList.remove("pack-dur-on"); });
+          btn.classList.add("pack-dur-on");
+          currentPlan = btn.getAttribute("data-plan");
+          render();
+        });
+      });
+
+      subjectChips.forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          subjectChips.forEach(function (c) { c.classList.remove("pack-subject-chip-on"); });
+          chip.classList.add("pack-subject-chip-on");
+          currentSubject = chip.getAttribute("data-subject");
+          render();
+        });
+      });
+
+      render();
+    });
+  })();
+
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---- reveal on scroll ---- */

@@ -12,7 +12,7 @@
     <div class="sub-badge {% if subscribed %}sub-on{% else %}sub-off{% endif %}">
       {% if subscribed %}
         <b>{{ t('db.sub_active') }}</b>
-        <span>{{ PLANS[g.user.sub_plan].name if g.user.sub_plan in PLANS else t('db.subscription_word') }}{% if g.user.sub_until %} — {{ t('db.until') }} {{ g.user.sub_until|ardateshort }}{% endif %}</span>
+        <span>{{ PLANS[g.user.sub_plan].name if g.user.sub_plan in PLANS else t('db.subscription_word') }} · {{ SUBJECT_MAP.get(g.user.sub_subject, t('pr.all_subjects_label')) }}{% if g.user.sub_until %} — {{ t('db.until') }} {{ g.user.sub_until|ardateshort }}{% endif %}</span>
       {% else %}
         <b>{{ t('db.free_account') }}</b>
         <span>{{ t('db.free_one_lesson') }}</span>

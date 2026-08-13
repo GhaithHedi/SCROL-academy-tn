@@ -76,37 +76,37 @@ SUBJECT_NAMES = {
 SUBJECT_CODES = list(SUBJECT_NAMES)
 
 PLAN_INFO = {
-    "monthly": {"price": 29,  "months": 1,
+    "monthly": {"price_subject": 29, "price_all": 45, "months": 1,
                 "name": {"ar": "العرض الشهري", "fr": "Offre mensuelle"},
                 "desc": {"ar": "اشتراك مرن يتجدّد شهريًا",
                          "fr": "Abonnement flexible, renouvelé chaque mois"},
                 "features": {
-                    "ar": ["كل دروس الرياضيات والفيزياء", "الحصص المباشرة الأسبوعية",
+                    "ar": ["دروس فيديو حسب باقتك", "الحصص المباشرة الأسبوعية",
                            "ملخصات وتمارين قابلة للتحميل", "إلغاء في أي وقت"],
-                    "fr": ["Tous les cours de maths et physique",
+                    "fr": ["Cours vidéo selon votre pack",
                            "Sessions en direct hebdomadaires",
                            "Résumés et exercices téléchargeables",
                            "Annulation à tout moment"]}},
-    "term":    {"price": 69,  "months": 3,
+    "term":    {"price_subject": 69, "price_all": 109, "months": 3,
                 "name": {"ar": "العرض الثلاثي", "fr": "Offre trimestrielle"},
                 "desc": {"ar": "ثلاثة أشهر كاملة لكل ثلاثي دراسي",
                          "fr": "Trois mois complets pour chaque trimestre scolaire"},
                 "features": {
-                    "ar": ["كل مزايا العرض الشهري", "توفير 18 دينارًا مقارنة بالشهري",
+                    "ar": ["كل مزايا العرض الشهري", "توفير مقارنة بالاشتراك الشهري",
                            "مراجعة مركّزة قبل الامتحانات", "أولوية في أسئلة الحصص المباشرة"],
                     "fr": ["Tous les avantages de l'offre mensuelle",
-                           "18 DT d'économie par rapport au mensuel",
+                           "Économie par rapport au mensuel",
                            "Révision intensive avant les examens",
                            "Priorité pour les questions en direct"]}},
-    "year":    {"price": 179, "months": 12,
-                "name": {"ar": "العرض السنوي", "fr": "Offre annuelle"},
-                "desc": {"ar": "السنة الدراسية كاملة… براحة بال",
-                         "fr": "Toute l'année scolaire… en toute tranquillité"},
+    "year":    {"price_subject": 179, "price_all": 259, "months": 9,
+                "name": {"ar": "السنوي (السنة الدراسية)", "fr": "Annuel (année scolaire)"},
+                "desc": {"ar": "تسعة أشهر دراسية كاملة… براحة بال",
+                         "fr": "Neuf mois d'école complets… en toute tranquillité"},
                 "features": {
-                    "ar": ["كل مزايا العرض الثلاثي", "توفير يفوق 45٪",
+                    "ar": ["كل مزايا العرض الثلاثي", "أفضل توفير على المدى الطويل",
                            "مرافقة حتى ليلة الامتحان", "شهادة إتمام في آخر السنة"],
                     "fr": ["Tous les avantages de l'offre trimestrielle",
-                           "Plus de 45% d'économie",
+                           "La meilleure économie sur la durée",
                            "Accompagnement jusqu'à la veille de l'examen",
                            "Certificat de fin d'année"]}},
 }
@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS users (
     role          TEXT NOT NULL DEFAULT 'student',
     sub_plan      TEXT,
     sub_until     TEXT,
+    sub_subject   TEXT,
     created_at    TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS courses (
@@ -220,6 +221,7 @@ CREATE TABLE IF NOT EXISTS payments (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     plan       TEXT NOT NULL,
+    subject    TEXT,
     amount     INTEGER NOT NULL,
     method     TEXT NOT NULL,
     reference  TEXT,
@@ -521,6 +523,14 @@ def init_db():
     if "reminded_at" not in ls_cols:
         db.execute("ALTER TABLE live_sessions ADD COLUMN reminded_at TEXT")
         db.commit()
+    u_cols = [r[1] for r in db.execute("PRAGMA table_info(users)")]
+    if "sub_subject" not in u_cols:
+        db.execute("ALTER TABLE users ADD COLUMN sub_subject TEXT")
+        db.commit()
+    pm_cols = [r[1] for r in db.execute("PRAGMA table_info(payments)")]
+    if "subject" not in pm_cols:
+        db.execute("ALTER TABLE payments ADD COLUMN subject TEXT")
+        db.commit()
     if db.execute("SELECT COUNT(*) FROM levels").fetchone()[0] == 0:
         for i, code in enumerate(LEVEL_CODES):
             names = LEVEL_NAMES[code]
@@ -564,6 +574,25 @@ def is_subscribed(user=None):
         return dt.date.fromisoformat(user["sub_until"]) >= dt.date.today()
     except ValueError:
         return False
+
+
+def has_subject_access(subject, user=None):
+    """Like is_subscribed(), but also checks the plan's subject scope —
+    a single-subject pack (users.sub_subject set) only unlocks that one
+    subject; an all-subjects pack (sub_subject NULL) unlocks everything."""
+    user = user if user is not None else g.user
+    if not user:
+        return False
+    if user["role"] in ("admin", "prof"):
+        return True
+    if not user["sub_until"]:
+        return False
+    try:
+        if dt.date.fromisoformat(user["sub_until"]) < dt.date.today():
+            return False
+    except ValueError:
+        return False
+    return not user["sub_subject"] or user["sub_subject"] == subject
 
 
 def login_required(view):
@@ -657,13 +686,15 @@ def pay_method_name(code):
     return PAY_METHOD_NAMES.get(code, {}).get(get_lang(), code)
 
 
-def plan_info(code):
+def plan_info(code, subject=None):
     p = PLAN_INFO.get(code)
     if not p:
         return None
     lang = get_lang()
-    return {"name": p["name"][lang], "price": p["price"], "months": p["months"],
-            "desc": p["desc"][lang], "features": p["features"][lang]}
+    price = p["price_subject"] if subject else p["price_all"]
+    return {"name": p["name"][lang], "price": price, "months": p["months"],
+            "desc": p["desc"][lang], "features": p["features"][lang],
+            "subject": subject}
 
 
 def chapter_entry(level, subject, position):
@@ -1009,7 +1040,7 @@ TR = {
                         "fr": "Un seul abonnement débloque les deux matières pour tous les "
                               "niveaux, avec des offres mensuelles, trimestrielles et annuelles."},
     "idx.pricing_eyebrow": {"ar": "عروض بسيطة وواضحة", "fr": "Des offres simples et claires"},
-    "idx.pricing_title": {"ar": "اشتراك واحد… يفتح كل شيء", "fr": "Un seul abonnement… débloque tout"},
+    "idx.pricing_title": {"ar": "باقتك… بمقاسك", "fr": "Votre pack… à votre mesure"},
     "idx.most_chosen": {"ar": "الأكثر اختيارًا", "fr": "Le plus choisi"},
     "idx.choose_plan": {"ar": "اختر هذا العرض", "fr": "Choisir cette offre"},
     "idx.plans_note": {"ar": "التسجيل في المنصة مجاني دائمًا — الدفع فقط عند فتح كامل المحتوى.",
@@ -1144,28 +1175,27 @@ TR = {
     "co.login": {"ar": "🔒 دخول", "fr": "🔒 Connexion"},
     "co.subscribers_only_title": {"ar": "متاح للمشتركين", "fr": "Réservé aux abonnés"},
     "co.login_title": {"ar": "سجّل الدخول", "fr": "Connectez-vous"},
-    "co.unlock_title": {"ar": "افتح المحور كاملًا — وكلّ المحاور الأخرى", "fr": "Débloquez ce chapitre — et tous les autres"},
-    "co.unlock_p": {"ar": "اشتراك واحد يفتح كل دروس الرياضيات والفيزياء لكل المستويات، إضافة إلى الحصص المباشرة.",
-                     "fr": "Un seul abonnement débloque tous les cours de maths et physique "
-                           "pour tous les niveaux, ainsi que les sessions en direct."},
+    "co.unlock_title": {"ar": "افتح هذا المحور", "fr": "Débloquez ce chapitre"},
+    "co.unlock_p": {"ar": "اشترك في هذه المادة فقط، أو افتح كل المواد بباقة الوصول الكامل.",
+                     "fr": "Abonnez-vous à cette seule matière, ou débloquez toutes les matières avec le pack accès complet."},
     "co.discover_offers": {"ar": "اكتشف العروض", "fr": "Découvrir les offres"},
 
     # watch.html
     "wa.mark_undo": {"ar": "↺ إلغاء تحديد \"تمت المشاهدة\"", "fr": "↺ Annuler « vu »"},
     "wa.mark_done": {"ar": "✓ تحديد الدرس كمكتمل", "fr": "✓ Marquer comme terminé"},
     "wa.like_it": {"ar": "أعجبك الشرح؟", "fr": "Vous avez aimé l'explication ?"},
-    "wa.unlock_rest": {"ar": "اشترك لفتح بقيّة دروس هذا المحور وكل المحاور الأخرى.",
-                        "fr": "Abonnez-vous pour débloquer le reste de ce chapitre et tous "
-                              "les autres."},
+    "wa.unlock_rest": {"ar": "اشترك في هذه المادة، أو افتح كل المواد بباقة الوصول الكامل.",
+                        "fr": "Abonnez-vous à cette matière, ou débloquez toutes les matières "
+                              "avec le pack accès complet."},
     "wa.offers": {"ar": "العروض", "fr": "Les offres"},
     "wa.chapter_lessons": {"ar": "دروس المحور", "fr": "Cours du chapitre"},
 
     # pricing.html
     "pr.eyebrow": {"ar": "بلا مفاجآت وبلا رموز صغيرة", "fr": "Sans surprise et sans petits caractères"},
-    "pr.title": {"ar": "اختر عرضك… وافتح كل شيء", "fr": "Choisissez votre offre… et débloquez tout"},
-    "pr.sub": {"ar": "اشتراك واحد يشمل الرياضيات والفيزياء لكل المستويات، الحصص المباشرة، والملخصات.",
-               "fr": "Un seul abonnement couvre les maths et la physique pour tous les "
-                     "niveaux, les sessions en direct, et les résumés."},
+    "pr.title": {"ar": "اختر باقتك… مادة واحدة أو الوصول الكامل", "fr": "Choisissez votre pack… une matière ou l'accès complet"},
+    "pr.sub": {"ar": "مادة واحدة تختارها، أو كل المواد — أنت من يقرر. حصص مباشرة وملخصات ومتابعة أسبوعية في الحالتين.",
+               "fr": "Une matière de votre choix, ou toutes les matières — c'est vous qui "
+                     "décidez. Sessions en direct, résumés et suivi hebdomadaire dans les deux cas."},
     "pr.most_chosen": {"ar": "الأكثر اختيارًا", "fr": "Le plus choisi"},
     "pr.for_duration": {"ar": "لمدة", "fr": "Pour"},
     "pr.month_1": {"ar": "شهر", "fr": "mois"},
@@ -1174,6 +1204,19 @@ TR = {
     "pr.already_subscribed": {"ar": "أنت مشترك بالفعل ✓", "fr": "Vous êtes déjà abonné ✓"},
     "pr.choose_offer": {"ar": "اختر هذا العرض", "fr": "Choisir cette offre"},
     "pr.register_then_subscribe": {"ar": "أنشئ حسابًا ثم اشترك", "fr": "Créez un compte puis abonnez-vous"},
+    "pr.all_title": {"ar": "🏆 الوصول الكامل", "fr": "🏆 Accès complet"},
+    "pr.all_desc": {"ar": "كل المواد الدراسية ({n} مادة حاليًا) بلا استثناء — الخيار الأشمل والأوفر على المدى الطويل.",
+                     "fr": "Toutes les matières ({n} actuellement) sans exception — le choix le plus complet et le plus économique sur la durée."},
+    "pr.subject_title": {"ar": "🎯 مادة واحدة على كيفك", "fr": "🎯 Une seule matière, à votre choix"},
+    "pr.subject_desc": {"ar": "ركّز على مادة واحدة تختارها بنفسك، بنفس المزايا الكاملة، بسعر أقل.",
+                         "fr": "Concentrez-vous sur une seule matière de votre choix, avec tous les avantages, à prix réduit."},
+    "pr.choose_subject_hint": {"ar": "اختر مادتك:", "fr": "Choisissez votre matière :"},
+    "pr.dur_monthly": {"ar": "شهري", "fr": "Mensuel"},
+    "pr.dur_term": {"ar": "ثلاثي", "fr": "Trimestriel"},
+    "pr.dur_year": {"ar": "سنوي", "fr": "Annuel"},
+    "pr.all_subjects_label": {"ar": "كل المواد", "fr": "Toutes les matières"},
+    "pr.scope_label": {"ar": "المادة", "fr": "Matière"},
+    "ad.scope_col": {"ar": "النطاق", "fr": "Portée"},
     "pr.pay_methods_title": {"ar": "طرق الدفع المقبولة 🇹🇳", "fr": "Moyens de paiement acceptés 🇹🇳"},
     "pr.pay_note": {"ar": "بعد إرسال المبلغ، أكّد الدفع من صفحة الاشتراك وسيفعَّل حسابك بعد مراجعة الإدارة.",
                      "fr": "Après avoir envoyé le montant, confirmez le paiement depuis la page "
@@ -1614,12 +1657,12 @@ FAQ_ITEMS = [
      "fr": ("J'ai oublié mon mot de passe, que faire ?",
             "Dans cette version de démonstration, contactez l'administration par "
             "WhatsApp ou email pour le réinitialiser.")},
-    {"ar": ("هل الاشتراك يشمل الرياضيات والفيزياء معًا؟",
-            "نعم، اشتراك واحد يفتح كل دروس المادّتين لكل المستويات، إضافة إلى الحصص "
-            "المباشرة والملخصات."),
-     "fr": ("L'abonnement couvre-t-il les maths et la physique ensemble ?",
-            "Oui, un seul abonnement débloque tous les cours des deux matières pour "
-            "tous les niveaux, ainsi que les sessions en direct et les résumés.")},
+    {"ar": ("هل يمكنني الاشتراك في مادة واحدة فقط؟",
+            "نعم — يمكنك اختيار باقة مادة واحدة (رياضيات أو فيزياء أو غيرها) بسعر أقل، "
+            "أو باقة الوصول الكامل لكل المواد دفعة واحدة."),
+     "fr": ("Puis-je m'abonner à une seule matière ?",
+            "Oui — vous pouvez choisir un pack pour une seule matière (maths, physique, "
+            "ou autre) à prix réduit, ou le pack accès complet pour toutes les matières.")},
 ]
 
 
@@ -1633,7 +1676,7 @@ app.jinja_env.globals.update(
     t=t, level_name=level_name, subject_name=subject_name,
     pay_method_name=pay_method_name, course_title=course_title,
     course_description=course_description, lesson_title=lesson_title,
-    lesson_description=lesson_description,
+    lesson_description=lesson_description, has_subject_access=has_subject_access,
 )
 
 
@@ -1877,7 +1920,7 @@ def course_quiz(cid):
     c = query("SELECT * FROM courses WHERE id=?", (cid,), one=True)
     if not c:
         abort(404)
-    if not is_subscribed():
+    if not has_subject_access(c["subject"]):
         flash(t("qz.subscribers_only"), "warn")
         return redirect(url_for("course", cid=cid))
     quiz = query("SELECT * FROM quizzes WHERE course_id=?", (cid,), one=True)
@@ -1902,7 +1945,7 @@ def course_quiz_submit(cid):
     c = query("SELECT * FROM courses WHERE id=?", (cid,), one=True)
     if not c:
         abort(404)
-    if not is_subscribed():
+    if not has_subject_access(c["subject"]):
         abort(403)
     quiz = query("SELECT * FROM quizzes WHERE course_id=?", (cid,), one=True)
     if not quiz:
@@ -1943,7 +1986,7 @@ def watch(lid):
         abort(404)
     c = query("SELECT * FROM courses WHERE id=?", (lesson["course_id"],),
               one=True)
-    if not lesson["is_free"] and not is_subscribed():
+    if not lesson["is_free"] and not has_subject_access(c["subject"]):
         flash(t("flash.subscribers_only"),
               "warn")
         return redirect(url_for("pricing"))
@@ -1970,8 +2013,10 @@ def watch_toggle(lid):
     lesson = query("SELECT * FROM lessons WHERE id=?", (lid,), one=True)
     if not lesson:
         abort(404)
-    if not lesson["is_free"] and not is_subscribed():
-        abort(403)
+    if not lesson["is_free"]:
+        c = query("SELECT subject FROM courses WHERE id=?", (lesson["course_id"],), one=True)
+        if not c or not has_subject_access(c["subject"]):
+            abort(403)
     done = query("SELECT id FROM lesson_progress WHERE user_id=? AND lesson_id=?",
                  (g.user["id"], lid), one=True)
     if done:
@@ -2020,7 +2065,10 @@ def total_watch_minutes(user_id):
 # ----------------------------------------------------------------------------
 @app.route("/pricing")
 def pricing():
-    return render_template("pricing.html")
+    plans_all = {code: plan_info(code) for code in PLAN_INFO}
+    plans_subject = {code: plan_info(code, subject=True) for code in PLAN_INFO}
+    return render_template("pricing.html", plans_all=plans_all, plans_subject=plans_subject,
+                           subject_count=len(all_subject_codes()))
 
 
 @app.route("/checkout/<plan>", methods=["GET", "POST"])
@@ -2028,25 +2076,28 @@ def pricing():
 def checkout(plan):
     if plan not in PLAN_INFO:
         abort(404)
-    p = plan_info(plan)
+    subject = request.args.get("subject") or None
+    if subject and subject not in all_subject_codes():
+        subject = None
+    p = plan_info(plan, subject=subject)
     if request.method == "POST":
         method = request.form.get("method", "d17")
         if method not in PAY_METHOD_CODES:
             method = "d17"
         reference = request.form.get("reference", "").strip()
         now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-        execute("INSERT INTO payments(user_id,plan,amount,method,reference,"
-                "status,created_at) VALUES(?,?,?,?,?,?,?)",
-                (g.user["id"], plan, p["price"], method, reference,
+        execute("INSERT INTO payments(user_id,plan,subject,amount,method,reference,"
+                "status,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                (g.user["id"], plan, subject, p["price"], method, reference,
                  "pending", now))
         flash(t("flash.payment_pending"),
               "ok")
         return redirect(url_for("dashboard"))
-    return render_template("checkout.html", plan=plan, p=p,
+    return render_template("checkout.html", plan=plan, subject=subject, p=p,
                            methods=[(c, pay_method_name(c)) for c in PAY_METHOD_CODES])
 
 
-def _activate(uid, plan):
+def _activate(uid, plan, subject=None):
     months = PLAN_INFO[plan]["months"]
     user = query("SELECT sub_until FROM users WHERE id=?", (uid,), one=True)
     start = dt.date.today()
@@ -2058,8 +2109,8 @@ def _activate(uid, plan):
         except ValueError:
             pass
     until = start + dt.timedelta(days=30 * months)
-    execute("UPDATE users SET sub_plan=?, sub_until=? WHERE id=?",
-            (plan, until.isoformat(), uid))
+    execute("UPDATE users SET sub_plan=?, sub_until=?, sub_subject=? WHERE id=?",
+            (plan, until.isoformat(), subject, uid))
 
 
 # ----------------------------------------------------------------------------
@@ -2758,7 +2809,7 @@ def admin_payment(pid, action):
         abort(404)
     if action == "approve":
         execute("UPDATE payments SET status='approved' WHERE id=?", (pid,))
-        _activate(pay["user_id"], pay["plan"])
+        _activate(pay["user_id"], pay["plan"], pay["subject"])
         flash(t("flash.payment_approved"), "ok")
     else:
         execute("UPDATE payments SET status='rejected' WHERE id=?", (pid,))
@@ -2770,8 +2821,11 @@ def admin_payment(pid, action):
 @admin_required
 def admin_grant(uid):
     plan = request.form.get("plan", "monthly")
+    subject = request.form.get("subject") or None
+    if subject and subject not in all_subject_codes():
+        subject = None
     if plan in PLAN_INFO:
-        _activate(uid, plan)
+        _activate(uid, plan, subject)
         flash(t("flash.sub_activated"), "ok")
     return redirect(url_for("admin_panel", tab="users"))
 
@@ -2779,7 +2833,7 @@ def admin_grant(uid):
 @app.route("/admin/user/<int:uid>/revoke", methods=["POST"])
 @admin_required
 def admin_revoke(uid):
-    execute("UPDATE users SET sub_plan=NULL, sub_until=NULL WHERE id=?", (uid,))
+    execute("UPDATE users SET sub_plan=NULL, sub_until=NULL, sub_subject=NULL WHERE id=?", (uid,))
     flash(t("flash.sub_revoked"), "warn")
     return redirect(url_for("admin_panel", tab="users"))
 

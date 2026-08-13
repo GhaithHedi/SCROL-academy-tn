@@ -10,7 +10,7 @@
     <div class="course-meta head-meta">
       <span>🎬 {{ t('crs.n_lessons', n=lessons|length) }}</span>
       <span>{{ t('co.free_first') }}</span>
-      {% if not subscribed %}<span>{{ t('co.rest_subscribers') }}</span>{% endif %}
+      {% if not has_subject_access(c.subject) %}<span>{{ t('co.rest_subscribers') }}</span>{% endif %}
     </div>
   </div>
 </section>
@@ -19,7 +19,7 @@
   <div class="container container-narrow">
     <ol class="lesson-list">
       {% for l in lessons %}
-      {% set unlocked = l.is_free or subscribed %}
+      {% set unlocked = l.is_free or has_subject_access(c.subject) %}
       <li class="lesson-row {% if not unlocked %}lesson-locked{% endif %} reveal">
         <span class="lesson-index">{{ loop.index }}</span>
         <div class="lesson-info">
@@ -39,7 +39,7 @@
       {% endfor %}
     </ol>
 
-    {% if not subscribed %}
+    {% if not has_subject_access(c.subject) %}
     <div class="unlock-banner card">
       <div>
         <h3>{{ t('co.unlock_title') }}</h3>
@@ -52,7 +52,7 @@
     {% if g.user %}
     <div class="card quiz-teaser">
       <h3>{{ t('qz.title') }}</h3>
-      {% if not subscribed %}
+      {% if not has_subject_access(c.subject) %}
         <p class="muted">{{ t('qz.subscribers_only') }}</p>
       {% elif not quiz or n_questions == 0 %}
         <p class="muted">{{ t('qz.not_ready') }}</p>

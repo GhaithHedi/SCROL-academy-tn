@@ -28,7 +28,7 @@
           {% if s.teacher %}<span class="live-teacher">👨‍🏫 {{ s.teacher }}</span>{% endif %}
         </div>
         <div class="live-action">
-          {% if subscribed and s.meet_url %}
+          {% if has_subject_access(s.subject) and s.meet_url %}
             <a class="btn btn-live" href="{{ s.meet_url }}" target="_blank" rel="noopener">{{ t('lv.live_link') }}</a>
           {% elif g.user %}
             <a class="btn btn-lock" href="{{ url_for('pricing') }}">{{ t('lv.subscribers_only') }}</a>

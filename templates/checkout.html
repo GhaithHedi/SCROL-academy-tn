@@ -15,6 +15,7 @@
     <div class="card checkout-summary reveal">
       <h3>{{ t('ch.summary') }}</h3>
       <div class="sum-row"><span>{{ t('ch.offer') }}</span><b>{{ p.name }}</b></div>
+      <div class="sum-row"><span>{{ t('pr.scope_label') }}</span><b>{{ SUBJECT_MAP.get(subject, t('pr.all_subjects_label')) }}</b></div>
       <div class="sum-row"><span>{{ t('ch.duration') }}</span><b>
         {% if lang == 'fr' %}{{ p.months }} {{ t('pr.month_1') }}
         {% else %}{{ p.months }} {% if p.months == 1 %}{{ t('pr.month_1') }}{% elif p.months <= 10 %}{{ t('pr.month_few') }}{% else %}{{ t('pr.month_many') }}{% endif %}
@@ -28,7 +29,7 @@
     </div>
 
     <form class="card checkout-form reveal delay-1" method="post"
-          action="{{ url_for('checkout', plan=plan) }}">
+          action="{{ url_for('checkout', plan=plan, subject=subject) }}">
       <h3>{{ t('ch.step1') }}</h3>
       <div class="pay-instructions">
         <div class="pay-line"><b>D17 / Flouci:</b> <span dir="ltr">+216 00 000 000</span></div>

@@ -78,7 +78,7 @@
     <div class="card table-card">
       <table class="atable">
         <thead>
-          <tr><th>#</th><th>{{ t('ad.student_col') }}</th><th>{{ t('ad.offer_col') }}</th><th>{{ t('ad.amount_col') }}</th><th>{{ t('ad.method_col') }}</th><th>{{ t('ad.reference_col') }}</th><th>{{ t('ad.date_col') }}</th><th>{{ t('ad.status_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+          <tr><th>#</th><th>{{ t('ad.student_col') }}</th><th>{{ t('ad.offer_col') }}</th><th>{{ t('ad.scope_col') }}</th><th>{{ t('ad.amount_col') }}</th><th>{{ t('ad.method_col') }}</th><th>{{ t('ad.reference_col') }}</th><th>{{ t('ad.date_col') }}</th><th>{{ t('ad.status_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
         </thead>
         <tbody>
         {% for p in payments %}
@@ -86,6 +86,7 @@
             <td class="num">{{ p.id }}</td>
             <td>{{ p.user_name }}<br><small dir="ltr">{{ p.user_email }}</small></td>
             <td>{{ PLANS[p.plan].name if p.plan in PLANS else p.plan }}</td>
+            <td>{{ SUBJECT_MAP.get(p.subject, t('pr.all_subjects_label')) }}</td>
             <td class="num">{{ p.amount }} د.ت</td>
             <td>{{ pay_map.get(p.method, p.method) }}</td>
             <td><small>{{ p.reference or '—' }}</small></td>
@@ -105,7 +106,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="9" class="center muted">{{ t('ad.no_payments_yet') }}</td></tr>
+          <tr><td colspan="10" class="center muted">{{ t('ad.no_payments_yet') }}</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -131,6 +132,7 @@
             <td>
               {% if u.sub_until and u.sub_until >= today %}
                 <span class="status status-approved">{{ t('ad.active_until', date=u.sub_until|ardateshort) }}</span>
+                <br><small class="muted">{{ SUBJECT_MAP.get(u.sub_subject, t('pr.all_subjects_label')) }}</small>
               {% else %}
                 <span class="status status-off">{{ t('ad.not_subscribed') }}</span>
               {% endif %}
@@ -140,6 +142,10 @@
               <form method="post" action="{{ url_for('admin_grant', uid=u.id) }}" class="inline-form">
                 <select name="plan" class="mini-select">
                   {% for key, p in PLANS.items() %}<option value="{{ key }}">{{ p.name }}</option>{% endfor %}
+                </select>
+                <select name="subject" class="mini-select">
+                  <option value="">{{ t('pr.all_subjects_label') }}</option>
+                  {% for code, name in SUBJECTS %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
                 </select>
                 <button class="btn btn-primary btn-xs">{{ t('ad.activate_extend') }}</button>
               </form>

@@ -12,32 +12,83 @@
 
 <section class="section section-flush">
   <div class="container">
-    <div class="plans-grid plans-full">
-      {% for key, p in PLANS.items() %}
-      <article class="plan-card reveal {% if key == 'term' %}plan-featured{% endif %}">
-        {% if key == 'term' %}<span class="plan-flag">{{ t('pr.most_chosen') }}</span>{% endif %}
-        <h3>{{ p.name }}</h3>
-        <div class="plan-price"><span class="num">{{ p.price }}</span><span class="cur">د.ت</span></div>
-        <span class="plan-cycle">
-          {% if lang == 'fr' %}{{ p.months }} {{ t('pr.month_1') }}
-          {% else %}{{ t('pr.for_duration') }} {{ p.months }} {% if p.months == 1 %}{{ t('pr.month_1') }}{% elif p.months <= 10 %}{{ t('pr.month_few') }}{% else %}{{ t('pr.month_many') }}{% endif %}
-          {% endif %}
-        </span>
-        <p class="plan-desc">{{ p.desc }}</p>
-        <ul class="plan-feats">
-          {% for f in p.features %}<li>✓ {{ f }}</li>{% endfor %}
-        </ul>
-        {% if subscribed %}
-          <span class="btn btn-outline btn-block" aria-disabled="true">{{ t('pr.already_subscribed') }}</span>
-        {% elif g.user %}
-          <a class="btn {% if key == 'term' %}btn-primary{% else %}btn-outline{% endif %} btn-block"
-             href="{{ url_for('checkout', plan=key) }}">{{ t('pr.choose_offer') }}</a>
+    <script>
+      window.PACK_PRICES = {
+        all: {{ plans_all|tojson }},
+        subject: {{ plans_subject|tojson }}
+      };
+      window.PACK_STRINGS = {
+        forDuration: {{ t('pr.for_duration')|tojson }},
+        month1: {{ t('pr.month_1')|tojson }},
+        monthFew: {{ t('pr.month_few')|tojson }},
+        monthMany: {{ t('pr.month_many')|tojson }}
+      };
+      window.PACK_CHECKOUT_BASE = {{ url_for('checkout', plan='__PLAN__')|tojson }};
+      window.PACK_LOGGED_IN = {{ (g.user is not none)|tojson }};
+      window.PACK_LANG = {{ lang|tojson }};
+      window.PACK_REGISTER_URL = {{ url_for('register')|tojson }};
+    </script>
+
+    <div class="packs-grid">
+      <div class="pack-card" data-pack="all">
+        <h3>{{ t('pr.all_title') }}</h3>
+        <p class="muted">{{ t('pr.all_desc', n=subject_count) }}</p>
+
+        <div class="pack-duration-toggle">
+          <button type="button" class="pack-dur-btn" data-plan="monthly">{{ t('pr.dur_monthly') }}</button>
+          <button type="button" class="pack-dur-btn pack-dur-on" data-plan="term">{{ t('pr.dur_term') }}</button>
+          <button type="button" class="pack-dur-btn" data-plan="year">{{ t('pr.dur_year') }}</button>
+        </div>
+
+        <div class="pack-price">
+          <span class="pack-price-amount" data-pack-price>{{ plans_all.term.price }}</span>
+          <span class="pack-price-cur">د.ت</span>
+          <span class="pack-price-period" data-pack-period></span>
+        </div>
+
+        <div class="pack-chips">
+          {% for code, name in SUBJECTS %}
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[code].color }};">{{ name }}</span>
+          {% endfor %}
+        </div>
+
+        {% if g.user %}
+        <a class="btn btn-primary btn-block" data-pack-cta href="{{ url_for('checkout', plan='term') }}">{{ t('pr.choose_offer') }}</a>
         {% else %}
-          <a class="btn {% if key == 'term' %}btn-primary{% else %}btn-outline{% endif %} btn-block"
-             href="{{ url_for('register') }}">{{ t('pr.register_then_subscribe') }}</a>
+        <a class="btn btn-primary btn-block" href="{{ url_for('register') }}">{{ t('pr.register_then_subscribe') }}</a>
         {% endif %}
-      </article>
-      {% endfor %}
+      </div>
+
+      <div class="pack-card" data-pack="subject">
+        <h3>{{ t('pr.subject_title') }}</h3>
+        <p class="muted">{{ t('pr.subject_desc') }}</p>
+
+        <div class="pack-duration-toggle">
+          <button type="button" class="pack-dur-btn" data-plan="monthly">{{ t('pr.dur_monthly') }}</button>
+          <button type="button" class="pack-dur-btn pack-dur-on" data-plan="term">{{ t('pr.dur_term') }}</button>
+          <button type="button" class="pack-dur-btn" data-plan="year">{{ t('pr.dur_year') }}</button>
+        </div>
+
+        <div class="pack-price">
+          <span class="pack-price-amount" data-pack-price>{{ plans_subject.term.price }}</span>
+          <span class="pack-price-cur">د.ت</span>
+          <span class="pack-price-period" data-pack-period></span>
+        </div>
+
+        <p class="pack-subject-hint">{{ t('pr.choose_subject_hint') }}</p>
+        <div class="pack-chips pack-chips-selectable">
+          {% for code, name in SUBJECTS %}
+          <button type="button" class="chip chip-subj pack-subject-chip {% if loop.first %}pack-subject-chip-on{% endif %}"
+                  style="--subj: {{ SUBJECT_META[code].color }};" data-subject="{{ code }}">{{ name }}</button>
+          {% endfor %}
+        </div>
+
+        {% if g.user %}
+        <a class="btn btn-primary btn-block" data-pack-cta href="{{ url_for('checkout', plan='term', subject=SUBJECTS[0][0] if SUBJECTS else None) }}">{{ t('pr.choose_offer') }}</a>
+        {% else %}
+        <a class="btn btn-primary btn-block" href="{{ url_for('register') }}">{{ t('pr.register_then_subscribe') }}</a>
+        {% endif %}
+      </div>
     </div>
 
     <div class="pay-methods card reveal">

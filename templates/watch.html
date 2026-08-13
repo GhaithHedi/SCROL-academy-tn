@@ -33,7 +33,7 @@
             {% if is_done %}{{ t('wa.mark_undo') }}{% else %}{{ t('wa.mark_done') }}{% endif %}
           </button>
         </form>
-        {% if not subscribed %}
+        {% if not has_subject_access(c.subject) %}
         <div class="unlock-banner card slim">
           <div>
             <b>{{ t('wa.like_it') }}</b>
@@ -60,7 +60,7 @@
       <h3>{{ t('wa.chapter_lessons') }} <small>({{ playlist|length }})</small></h3>
       <ol class="side-list">
         {% for l in playlist %}
-        {% set unlocked = l.is_free or subscribed %}
+        {% set unlocked = l.is_free or has_subject_access(c.subject) %}
         <li class="{% if l.id == lesson.id %}side-current{% endif %} {% if l.id in done_ids %}side-done{% endif %}">
           {% if unlocked %}
             <a href="{{ url_for('watch', lid=l.id) }}">
