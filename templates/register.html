@@ -30,7 +30,7 @@
 
       <label class="field">
         <span>{{ t('reg.phone') }}</span>
-        <input type="tel" name="phone" dir="ltr" placeholder="+216 -- --- ---" value="{{ request.form.phone or '' }}">
+        <input type="tel" name="phone" required dir="ltr" placeholder="+216 -- --- ---" value="{{ request.form.phone or '' }}">
       </label>
 
       <label class="field">

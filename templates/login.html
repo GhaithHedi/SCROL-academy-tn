@@ -26,6 +26,9 @@
         <span>{{ t('log.password') }}</span>
         <input type="password" name="password" required placeholder="••••••••">
       </label>
+      <p class="auth-alt" style="text-align: start; margin-top: -6px;">
+        <a class="muted-link" href="{{ url_for('forgot_password') }}">{{ t('log.forgot_link') }}</a>
+      </p>
 
       <button class="btn btn-primary btn-block btn-lg" type="submit">{{ t('log.submit') }}</button>
       <p class="auth-alt">{{ t('log.no_account') }} <a href="{{ url_for('register') }}">{{ t('log.register_link') }}</a></p>

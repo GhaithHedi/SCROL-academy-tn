@@ -79,12 +79,12 @@ def generate_verify_code():
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def send_verification_email(to_email, to_name, code):
-    """Send a verification-code email via the Brevo transactional API.
+def _send_code_email(to_email, to_name, code, subject, intro_html, log_label):
+    """Send a 6-digit-code email via the Brevo transactional API.
     Returns True on success; failures are logged but never raised, so a
-    down email provider doesn't break registration/login."""
+    down email provider doesn't break registration/login/reset."""
     if not BREVO_API_KEY or not requests:
-        print(f" * [email disabled] verification code for {to_email}: {code}")
+        print(f" * [email disabled] {log_label} for {to_email}: {code}")
         return False
     try:
         resp = requests.post(
@@ -93,11 +93,11 @@ def send_verification_email(to_email, to_name, code):
             json={
                 "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
                 "to": [{"email": to_email, "name": to_name}],
-                "subject": f"{code} — رمز التحقق من بريدك | أكاديمية SCROL",
+                "subject": subject,
                 "htmlContent": (
                     f"<div dir='rtl' style='font-family:sans-serif;font-size:16px;line-height:1.7'>"
                     f"<p>مرحبًا {to_name}،</p>"
-                    f"<p>رمز التحقق من بريدك الإلكتروني في أكاديمية SCROL هو:</p>"
+                    f"<p>{intro_html}</p>"
                     f"<p style='font-size:32px;font-weight:bold;letter-spacing:6px'>{code}</p>"
                     f"<p>هذا الرمز صالح لمدة {VERIFY_CODE_TTL_MIN} دقيقة. "
                     f"إن لم تطلب هذا الرمز يمكنك تجاهل هذه الرسالة.</p></div>"
@@ -112,6 +112,22 @@ def send_verification_email(to_email, to_name, code):
     except requests.RequestException as e:
         print(f" * [email error] {e}")
         return False
+
+
+def send_verification_email(to_email, to_name, code):
+    return _send_code_email(
+        to_email, to_name, code,
+        subject=f"{code} — رمز التحقق من بريدك | أكاديمية SCROL",
+        intro_html="رمز التحقق من بريدك الإلكتروني في أكاديمية SCROL هو:",
+        log_label="verification code")
+
+
+def send_reset_email(to_email, to_name, code):
+    return _send_code_email(
+        to_email, to_name, code,
+        subject=f"{code} — رمز استعادة كلمة المرور | أكاديمية SCROL",
+        intro_html="رمز استعادة كلمة المرور لحسابك في أكاديمية SCROL هو:",
+        log_label="password reset code")
 
 
 def verify_turnstile(token, remote_ip=None):
@@ -265,6 +281,9 @@ CREATE TABLE IF NOT EXISTS users (
     verify_code    TEXT,
     verify_expires TEXT,
     verify_sent_at TEXT,
+    reset_code     TEXT,
+    reset_expires  TEXT,
+    reset_sent_at  TEXT,
     created_at    TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS courses (
@@ -623,6 +642,11 @@ def init_db():
         db.execute("ALTER TABLE users ADD COLUMN verify_expires TEXT")
         db.execute("ALTER TABLE users ADD COLUMN verify_sent_at TEXT")
         db.commit()
+    if "reset_code" not in u_cols:
+        db.execute("ALTER TABLE users ADD COLUMN reset_code TEXT")
+        db.execute("ALTER TABLE users ADD COLUMN reset_expires TEXT")
+        db.execute("ALTER TABLE users ADD COLUMN reset_sent_at TEXT")
+        db.commit()
     if db.execute("SELECT COUNT(*) FROM levels").fetchone()[0] == 0:
         for i, code in enumerate(LEVEL_CODES):
             names = LEVEL_NAMES[code]
@@ -931,8 +955,8 @@ TR = {
     # flash messages
     "flash.login_required": {"ar": "سجّل دخولك أولًا للوصول إلى هذه الصفحة.",
                               "fr": "Connectez-vous d'abord pour accéder à cette page."},
-    "flash.register_required_fields": {"ar": "الاسم والبريد وكلمة المرور حقول إجبارية.",
-                                        "fr": "Le nom, l'email et le mot de passe sont obligatoires."},
+    "flash.register_required_fields": {"ar": "الاسم والبريد ورقم الهاتف وكلمة المرور حقول إجبارية.",
+                                        "fr": "Le nom, l'email, le téléphone et le mot de passe sont obligatoires."},
     "flash.password_too_short": {"ar": "كلمة المرور يجب أن تتكوّن من 6 رموز على الأقل.",
                                   "fr": "Le mot de passe doit contenir au moins 6 caractères."},
     "flash.choose_level": {"ar": "اختر مستواك الدراسي.",
@@ -957,6 +981,15 @@ TR = {
                                   "fr": "Attendez un instant avant de redemander un code."},
     "flash.verify_resend_ok": {"ar": "أرسلنا لك رمزًا جديدًا. 📩",
                                 "fr": "Un nouveau code vous a été envoyé. 📩"},
+    "flash.reset_sent": {"ar": "إن كان بريدك مسجّلًا لدينا، أرسلنا إليه رمز استعادة. 📩",
+                          "fr": "Si cet email est enregistré chez nous, un code de "
+                                "récupération vient de lui être envoyé. 📩"},
+    "flash.reset_code_wrong": {"ar": "الرمز غير صحيح أو منتهي الصلاحية — اطلب رمزًا جديدًا.",
+                                "fr": "Le code est incorrect ou a expiré — demandez-en un nouveau."},
+    "flash.reset_password_mismatch": {"ar": "كلمتا المرور غير متطابقتين.",
+                                       "fr": "Les deux mots de passe ne correspondent pas."},
+    "flash.reset_success": {"ar": "تم تغيير كلمة المرور بنجاح — سجّل الدخول بها الآن.",
+                             "fr": "Mot de passe changé avec succès — connectez-vous avec."},
     "flash.logged_out": {"ar": "خرجت من حسابك. إلى اللقاء!",
                           "fr": "Vous êtes déconnecté(e). À bientôt !"},
     "flash.subscribers_only": {"ar": "هذا الدرس متاح للمشتركين فقط — الدرس الأول من كل محور مجاني.",
@@ -1176,7 +1209,7 @@ TR = {
     "reg.name": {"ar": "الاسم واللقب *", "fr": "Nom et prénom *"},
     "reg.name_ph": {"ar": "مثال: أمين بن صالح", "fr": "Exemple : Amine Ben Salah"},
     "reg.email": {"ar": "البريد الإلكتروني *", "fr": "Email *"},
-    "reg.phone": {"ar": "رقم الهاتف (اختياري)", "fr": "Numéro de téléphone (facultatif)"},
+    "reg.phone": {"ar": "رقم الهاتف *", "fr": "Numéro de téléphone *"},
     "reg.level": {"ar": "المستوى الدراسي *", "fr": "Niveau scolaire *"},
     "reg.level_choose": {"ar": "اختر مستواك…", "fr": "Choisissez votre niveau…"},
     "reg.password": {"ar": "كلمة المرور *", "fr": "Mot de passe *"},
@@ -1208,6 +1241,28 @@ TR = {
     "log.submit": {"ar": "دخول", "fr": "Se connecter"},
     "log.no_account": {"ar": "ما عندكش حساب؟", "fr": "Vous n'avez pas de compte ?"},
     "log.register_link": {"ar": "أنشئ حسابًا مجانيًا", "fr": "Créez un compte gratuit"},
+    "log.forgot_link": {"ar": "نسيت كلمة المرور؟", "fr": "Mot de passe oublié ?"},
+
+    # forgot_password.html
+    "fp.title": {"ar": "استعادة كلمة المرور", "fr": "Récupération du mot de passe"},
+    "fp.heading": {"ar": "نسيت كلمة المرور؟", "fr": "Mot de passe oublié ?"},
+    "fp.intro": {"ar": "أدخل بريدك الإلكتروني وسنرسل لك رمزًا لاستعادة حسابك.",
+                 "fr": "Entrez votre email, nous vous enverrons un code pour récupérer votre compte."},
+    "fp.email_label": {"ar": "البريد الإلكتروني", "fr": "Email"},
+    "fp.submit": {"ar": "أرسل رمز الاستعادة", "fr": "Envoyer le code de récupération"},
+    "fp.back_to_login": {"ar": "← الرجوع لتسجيل الدخول", "fr": "← Retour à la connexion"},
+
+    # reset_password.html
+    "rp.title": {"ar": "كلمة مرور جديدة", "fr": "Nouveau mot de passe"},
+    "rp.heading": {"ar": "خطوة أخيرة", "fr": "Dernière étape"},
+    "rp.intro": {"ar": "أدخل الرمز الذي وصلك بالبريد، ثم كلمة المرور الجديدة.",
+                 "fr": "Entrez le code reçu par email, puis votre nouveau mot de passe."},
+    "rp.code_label": {"ar": "رمز الاستعادة", "fr": "Code de récupération"},
+    "rp.new_password_label": {"ar": "كلمة المرور الجديدة", "fr": "Nouveau mot de passe"},
+    "rp.confirm_password_label": {"ar": "تأكيد كلمة المرور", "fr": "Confirmer le mot de passe"},
+    "rp.submit": {"ar": "تغيير كلمة المرور", "fr": "Changer le mot de passe"},
+    "rp.no_code": {"ar": "ما وصلكش الرمز؟", "fr": "Vous n'avez pas reçu le code ?"},
+    "rp.resend": {"ar": "أعد الإرسال", "fr": "Renvoyer"},
 
     # legal.html
     "legal.terms_title": {"ar": "شروط الاستخدام", "fr": "Conditions d'utilisation"},
@@ -1933,7 +1988,7 @@ def register():
         level = request.form.get("level", "")
         pw = request.form.get("password", "")
         captcha_token = request.form.get("cf-turnstile-response", "")
-        if not name or not email or not pw:
+        if not name or not email or not phone or not pw:
             flash(t("flash.register_required_fields"), "error")
         elif len(pw) < 6:
             flash(t("flash.password_too_short"), "error")
@@ -2040,6 +2095,80 @@ def login():
             return redirect(nxt or url_for("dashboard"))
         flash(t("flash.bad_credentials"), "error")
     return render_template("login.html")
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if g.user:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = query("SELECT * FROM users WHERE email=?", (email,), one=True)
+        if user:
+            now = dt.datetime.now()
+            code = generate_verify_code()
+            execute("UPDATE users SET reset_code=?, reset_expires=?, reset_sent_at=? WHERE id=?",
+                    (code, (now + dt.timedelta(minutes=VERIFY_CODE_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S"),
+                     now.strftime("%Y-%m-%d %H:%M:%S"), user["id"]))
+            send_reset_email(user["email"], user["name"], code)
+            session["reset_uid"] = user["id"]
+        flash(t("flash.reset_sent"), "ok")
+        return redirect(url_for("reset_password"))
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    if g.user:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        new_pw = request.form.get("password", "")
+        confirm_pw = request.form.get("confirm_password", "")
+        reset_uid = session.get("reset_uid")
+        user = query("SELECT * FROM users WHERE id=?", (reset_uid,), one=True) if reset_uid else None
+        try:
+            expired = (not user or not user["reset_expires"] or
+                       dt.datetime.strptime(user["reset_expires"], "%Y-%m-%d %H:%M:%S") < dt.datetime.now())
+        except ValueError:
+            expired = True
+        if not user or not code or not user["reset_code"] or code != user["reset_code"] or expired:
+            flash(t("flash.reset_code_wrong"), "error")
+        elif len(new_pw) < 6:
+            flash(t("flash.password_too_short"), "error")
+        elif new_pw != confirm_pw:
+            flash(t("flash.reset_password_mismatch"), "error")
+        else:
+            execute("UPDATE users SET password_hash=?, reset_code=NULL, reset_expires=NULL, "
+                    "reset_sent_at=NULL WHERE id=?", (generate_password_hash(new_pw), user["id"]))
+            session.pop("reset_uid", None)
+            flash(t("flash.reset_success"), "ok")
+            return redirect(url_for("login"))
+    return render_template("reset_password.html")
+
+
+@app.route("/reset-password/resend", methods=["POST"])
+def reset_password_resend():
+    reset_uid = session.get("reset_uid")
+    user = query("SELECT * FROM users WHERE id=?", (reset_uid,), one=True) if reset_uid else None
+    if not user:
+        return redirect(url_for("forgot_password"))
+    now = dt.datetime.now()
+    if user["reset_sent_at"]:
+        try:
+            last_sent = dt.datetime.strptime(user["reset_sent_at"], "%Y-%m-%d %H:%M:%S")
+            if (now - last_sent).total_seconds() < VERIFY_RESEND_COOLDOWN_SEC:
+                flash(t("flash.verify_resend_wait"), "warn")
+                return redirect(url_for("reset_password"))
+        except ValueError:
+            pass
+    code = generate_verify_code()
+    execute("UPDATE users SET reset_code=?, reset_expires=?, reset_sent_at=? WHERE id=?",
+            (code, (now + dt.timedelta(minutes=VERIFY_CODE_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S"),
+             now.strftime("%Y-%m-%d %H:%M:%S"), user["id"]))
+    send_reset_email(user["email"], user["name"], code)
+    flash(t("flash.verify_resend_ok"), "ok")
+    return redirect(url_for("reset_password"))
 
 
 @app.route("/logout")
