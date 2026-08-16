@@ -727,6 +727,22 @@ def has_subject_access(subject, user=None):
     return not user["sub_subject"] or user["sub_subject"] == subject
 
 
+def student_live_filter(user):
+    """WHERE-clause fragment + params restricting live_sessions to a
+    student's own level, and further to their subscribed subject if they
+    hold a single-subject (not all-access) plan. Free/all-access students
+    see every subject at their level. Non-students (admin/prof/guest) are
+    unfiltered."""
+    if not user or user["role"] != "student":
+        return "", []
+    where = " AND level_code=?"
+    params = [user["level_code"]]
+    if is_subscribed(user) and user["sub_subject"]:
+        where += " AND subject=?"
+        params.append(user["sub_subject"])
+    return where, params
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*a, **kw):
@@ -956,8 +972,8 @@ TR = {
     "footer.privacy": {"ar": "سياسة الخصوصية", "fr": "Politique de confidentialité"},
     "footer.tag_line2": {"ar": "🇹🇳 منصة تونسية — من التلميذ وإلى التلميذ",
                           "fr": "🇹🇳 Plateforme tunisienne — d'un élève à un autre"},
-    "footer.copyright": {"ar": "© 2026 أكاديمية SCROL — نسخة تجريبية للتشغيل المحلي",
-                          "fr": "© 2026 SCROL Academy — version de démonstration locale"},
+    "footer.copyright": {"ar": "© 2026 أكاديمية SCROL — جميع الحقوق محفوظة",
+                          "fr": "© 2026 SCROL Academy — Tous droits réservés"},
 
     # AI chat widget
     "ai.widget_title": {"ar": "المساعد الذكي", "fr": "Assistant IA"},
@@ -1076,6 +1092,12 @@ TR = {
     "flash.teacher_added": {"ar": "أُضيف حساب الأستاذ.", "fr": "Le compte enseignant a été créé."},
     "flash.teacher_updated": {"ar": "تم تحديث حساب الأستاذ.", "fr": "Le compte enseignant a été mis à jour."},
     "flash.teacher_deleted": {"ar": "حُذف حساب الأستاذ.", "fr": "Le compte enseignant a été supprimé."},
+    "flash.seed_cleanup_done": {"ar": "تم حذف {n} حساب/حسابات تجريبية.",
+                                 "fr": "{n} compte(s) de démonstration supprimé(s)."},
+    "ad.cleanup_seed_btn": {"ar": "🧹 حذف الحسابات التجريبية", "fr": "🧹 Supprimer les comptes de démonstration"},
+    "ad.cleanup_seed_confirm": {"ar": "سيتم حذف حسابات الطلبة والأساتذة التجريبية نهائيًا. متابعة؟",
+                                 "fr": "Les comptes élèves/enseignants de démonstration seront "
+                                       "supprimés définitivement. Continuer ?"},
     "flash.lesson_added": {"ar": "أُضيف الدرس.",
                             "fr": "Le cours a été ajouté."},
     "flash.lesson_invalid": {"ar": "تحقق من الحقول: المحور، العنوان، ورمز الفيديو إجبارية.",
@@ -1284,9 +1306,7 @@ TR = {
     # legal.html
     "legal.terms_title": {"ar": "شروط الاستخدام", "fr": "Conditions d'utilisation"},
     "legal.privacy_title": {"ar": "سياسة الخصوصية", "fr": "Politique de confidentialité"},
-    "legal.demo_note": {"ar": "نسخة تجريبية للتشغيل المحلي — عدّل هذا النص بما يناسب مشروعك قبل النشر.",
-                         "fr": "Version de démonstration locale — adaptez ce texte à votre "
-                               "projet avant toute publication."},
+    "legal.demo_note": {"ar": "آخر تحديث: أوت 2026", "fr": "Dernière mise à jour : août 2026"},
 
     # error.html
     "error.back_home": {"ar": "العودة للرئيسية", "fr": "Retour à l'accueil"},
@@ -1439,7 +1459,7 @@ TR = {
     "ch.method_used": {"ar": "الطريقة التي استعملتها", "fr": "Le moyen que vous avez utilisé"},
     "ch.reference": {"ar": "مرجع العملية / رقم الهاتف المرسِل (اختياري)",
                       "fr": "Référence de l'opération / numéro de l'expéditeur (facultatif)"},
-    "ch.reference_ph": {"ar": "مثال: TX-2026-0142 أو 00 000 000", "fr": "Exemple : TX-2026-0142 ou 00 000 000"},
+    "ch.reference_ph": {"ar": "رقم العملية أو المرجع من التطبيق", "fr": "Numéro de transaction ou référence de l'app"},
     "ch.confirm_btn": {"ar": "أرسلتُ المبلغ — تأكيد الدفع", "fr": "J'ai envoyé le montant — confirmer le paiement"},
     "ch.review_note": {"ar": "سيراجع فريقنا الإشعار ويفعّل اشتراكك، ويظهر ذلك في فضائك الشخصي.",
                         "fr": "Notre équipe examinera votre paiement et activera votre "
@@ -1655,15 +1675,12 @@ TR = {
     "ad.stat_subs": {"ar": "اشتراك مفعّل", "fr": "abonnements actifs"},
     "ad.stat_pending": {"ar": "دفع بانتظار المراجعة", "fr": "paiement(s) en attente"},
     "ad.stat_revenue": {"ar": "د.ت مداخيل مقبولة", "fr": "DT de revenus acceptés"},
-    "ad.welcome_title": {"ar": "مرحبًا بك في نسخة التشغيل المحلي", "fr": "Bienvenue dans la version locale"},
+    "ad.welcome_title": {"ar": "مرحبًا بك في لوحة الإدارة", "fr": "Bienvenue dans le panneau d'administration"},
     "ad.welcome_p": {"ar": "من هنا يمكنك قبول إشعارات الدفع، تفعيل الاشتراكات يدويًا، إضافة محاور "
-                           "ودروس (برمز فيديو يوتيوب)، وبرمجة الحصص المباشرة. كل التعديلات تُحفَظ "
-                           "في قاعدة البيانات academy.db — احذف الملف لإعادة البذر من الصفر.",
+                           "ودروس (برمز فيديو يوتيوب)، وبرمجة الحصص المباشرة.",
                       "fr": "Vous pouvez ici accepter les notifications de paiement, activer "
                             "manuellement des abonnements, ajouter des chapitres et des cours "
-                            "(via un code vidéo YouTube), et programmer des sessions en "
-                            "direct. Toutes les modifications sont enregistrées dans la base "
-                            "de données academy.db — supprimez le fichier pour tout réinitialiser."},
+                            "(via un code vidéo YouTube), et programmer des sessions en direct."},
     "ad.level": {"ar": "المستوى", "fr": "Niveau"},
     "ad.students_col": {"ar": "التلاميذ", "fr": "Élèves"},
     "ad.subscribers_col": {"ar": "المشتركون", "fr": "Abonnés"},
@@ -1857,11 +1874,12 @@ FAQ_ITEMS = [
             "confirmation du paiement, votre compte est activé et vous recevez une "
             "notification sur la plateforme.")},
     {"ar": ("نسيت كلمة المرور، ماذا أفعل؟",
-            "في هذه النسخة التجريبية تواصل مع إدارة المنصة عبر الواتساب أو البريد "
-            "لإعادة تعيينها."),
+            "اضغط على «نسيت كلمة المرور؟» في صفحة تسجيل الدخول، أدخل بريدك "
+            "الإلكتروني وستصلك رسالة برمز لإعادة تعيين كلمة مرور جديدة."),
      "fr": ("J'ai oublié mon mot de passe, que faire ?",
-            "Dans cette version de démonstration, contactez l'administration par "
-            "WhatsApp ou email pour le réinitialiser.")},
+            "Cliquez sur « Mot de passe oublié ? » sur la page de connexion, "
+            "entrez votre email et vous recevrez un code pour définir un "
+            "nouveau mot de passe.")},
     {"ar": ("هل يمكنني الاشتراك في مادة واحدة فقط؟",
             "نعم — يمكنك اختيار باقة مادة واحدة (رياضيات أو فيزياء أو غيرها) بسعر أقل، "
             "أو باقة الوصول الكامل لكل المواد دفعة واحدة."),
@@ -2556,7 +2574,8 @@ def checkout(plan):
               "ok")
         return redirect(url_for("dashboard"))
     return render_template("checkout.html", plan=plan, subject=subject, p=p,
-                           methods=[(c, pay_method_name(c)) for c in PAY_METHOD_CODES])
+                           methods=[(c, pay_method_name(c)) for c in PAY_METHOD_CODES
+                                    if c != "virement"])
 
 
 def _activate(uid, plan, subject=None):
@@ -2581,12 +2600,13 @@ def _activate(uid, plan, subject=None):
 @app.route("/live")
 def live():
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    where, extra = student_live_filter(g.user)
     upcoming = query(
-        "SELECT * FROM live_sessions WHERE starts_at >= ? ORDER BY starts_at",
-        (now,))
+        "SELECT * FROM live_sessions WHERE starts_at >= ?" + where + " ORDER BY starts_at",
+        tuple([now] + extra))
     past = query(
-        "SELECT * FROM live_sessions WHERE starts_at < ? "
-        "ORDER BY starts_at DESC LIMIT 6", (now,))
+        "SELECT * FROM live_sessions WHERE starts_at < ?" + where +
+        " ORDER BY starts_at DESC LIMIT 6", tuple([now] + extra))
     return render_template("live.html", upcoming=upcoming, past=past)
 
 
@@ -2624,9 +2644,10 @@ def dashboard():
         "SELECT * FROM payments WHERE user_id=? ORDER BY id DESC",
         (g.user["id"],))
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    where, extra = student_live_filter(g.user)
     next_lives = query(
-        "SELECT * FROM live_sessions WHERE starts_at >= ? AND level_code=? "
-        "ORDER BY starts_at LIMIT 3", (now, my_level))
+        "SELECT * FROM live_sessions WHERE starts_at >= ?" + where +
+        " ORDER BY starts_at LIMIT 3", tuple([now] + extra))
     return render_template("dashboard.html", my_courses=my_courses,
                            progress=progress, payments=payments,
                            next_lives=next_lives,
@@ -2707,11 +2728,12 @@ def schedule():
         "SELECT * FROM study_blocks WHERE user_id=? AND "
         "(repeat != 'none' OR (the_date BETWEEN ? AND ?))",
         (g.user["id"], week_start.isoformat(), week_end.isoformat()))
+    where, extra = student_live_filter(g.user)
     week_lives = query(
-        "SELECT * FROM live_sessions WHERE level_code=? AND starts_at >= ? AND starts_at < ? "
-        "ORDER BY starts_at",
-        (g.user["level_code"], week_start.strftime("%Y-%m-%d 00:00"),
-         (week_end + dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00")))
+        "SELECT * FROM live_sessions WHERE starts_at >= ? AND starts_at < ?" + where +
+        " ORDER BY starts_at",
+        tuple([week_start.strftime("%Y-%m-%d 00:00"),
+               (week_end + dt.timedelta(days=1)).strftime("%Y-%m-%d 00:00")] + extra))
 
     days = []
     for i in range(7):
@@ -3734,6 +3756,31 @@ def admin_teacher_delete(uid):
     execute("DELETE FROM users WHERE id=? AND role='prof'", (uid,))
     flash(t("flash.teacher_deleted"), "warn")
     return redirect(url_for("admin_panel", tab="teachers"))
+
+
+# Exact whitelist of seed/demo accounts created by seed_db() -- never a
+# pattern match, so a real user's account can never be caught by this.
+SEED_ACCOUNT_EMAILS = (
+    "ahmed@test.tn", "mariem@test.tn",
+    "prof1@scrol.tn", "prof2@scrol.tn", "prof3@scrol.tn",
+)
+
+
+@app.route("/admin/cleanup-seed-accounts", methods=["POST"])
+@admin_required
+def admin_cleanup_seed_accounts():
+    db = get_db()
+    deleted = 0
+    for email in SEED_ACCOUNT_EMAILS:
+        row = query("SELECT id FROM users WHERE email=?", (email,), one=True)
+        if not row:
+            continue
+        db.execute("DELETE FROM chat_messages WHERE author_id=?", (row["id"],))
+        db.execute("DELETE FROM users WHERE id=?", (row["id"],))
+        deleted += 1
+    db.commit()
+    flash(t("flash.seed_cleanup_done", n=deleted), "ok")
+    return redirect(url_for("admin_panel", tab="users"))
 
 
 # ----------------------------------------------------------------------------

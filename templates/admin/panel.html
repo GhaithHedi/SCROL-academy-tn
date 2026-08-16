@@ -115,6 +115,11 @@
 
     {# ------------------------------- USERS ------------------------------- #}
     {% if tab == 'users' %}
+    <form method="post" action="{{ url_for('admin_cleanup_seed_accounts') }}" class="inline-form"
+          style="margin-bottom: 12px;"
+          onsubmit="return confirm('{{ t('ad.cleanup_seed_confirm') }}');">
+      <button class="btn btn-outline btn-sm">{{ t('ad.cleanup_seed_btn') }}</button>
+    </form>
     <div class="card table-card">
       <table class="atable">
         <thead>
