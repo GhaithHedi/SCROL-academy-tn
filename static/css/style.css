@@ -855,7 +855,7 @@ code { font-family: var(--font-mono); background: var(--paper); padding: 0 .35em
 
 /* ============================ FOOTER ============================ */
 .footer {
-  background: var(--ink); color: rgba(255,255,255,.85);
+  background: var(--board); color: rgba(255,255,255,.85);
   padding: 56px 0 0; margin-top: 0; border-top: 4px solid var(--pen);
 }
 .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 34px; padding-bottom: 40px; }
