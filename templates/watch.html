@@ -324,7 +324,7 @@
           } else {
             setPlayIcon(false);
             if (e.data === YT.PlayerState.ENDED) setCoverState(true, true);
-            else if (e.data === YT.PlayerState.PAUSED) setCoverState(false);
+            else if (e.data === YT.PlayerState.PAUSED) setCoverState(true);
             clearInterval(reportTimer);
             clearInterval(uiTimer);
             try { sendProgress(player.getCurrentTime()); } catch (err) {}
