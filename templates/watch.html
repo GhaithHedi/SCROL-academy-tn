@@ -247,6 +247,7 @@
   var seeking = false;
   var seekTimer = null;
   var duration = 0;
+  var coverHideTimer = null;
 
   function setPlayIcon(playing) {
     var glyph = playing ? "⏸" : "▶";
@@ -306,8 +307,12 @@
         },
         onStateChange: function (e) {
           if (e.data === YT.PlayerState.PLAYING) {
-            setCoverState(false);
             setPlayIcon(true);
+            // YouTube can briefly show its own promo/annotation overlay right
+            // as playback (re)starts, even with controls/annotations disabled —
+            // keep our cover up a moment longer so it never peeks through.
+            clearTimeout(coverHideTimer);
+            coverHideTimer = setTimeout(function () { setCoverState(false); }, 1500);
             try { duration = player.getDuration(); pcDuration.textContent = fmtTime(duration); } catch (err) {}
             clearInterval(reportTimer);
             reportTimer = setInterval(function () {
@@ -322,6 +327,7 @@
               } catch (err) {}
             }, 500);
           } else {
+            clearTimeout(coverHideTimer);
             setPlayIcon(false);
             if (e.data === YT.PlayerState.ENDED) setCoverState(true, true);
             else if (e.data === YT.PlayerState.PAUSED) setCoverState(true);
