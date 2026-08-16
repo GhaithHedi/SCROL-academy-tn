@@ -115,30 +115,45 @@
 
     {# ------------------------------- USERS ------------------------------- #}
     {% if tab == 'users' %}
-    <div class="filters card">
-      <div class="filter-row">
-        <span class="filter-label">{{ t('ad.filter_role') }}</span>
-        <div class="filter-chips">
-          <a class="fchip {% if not sel_urole %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', ulevel=sel_ulevel) }}">{{ t('ad.filter_all') }}</a>
-          <a class="fchip {% if sel_urole == 'student' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='student', ulevel=sel_ulevel) }}">{{ t('ad.role_student') }}</a>
-          <a class="fchip {% if sel_urole == 'prof' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='prof', ulevel=sel_ulevel) }}">{{ t('ad.role_prof') }}</a>
-          <a class="fchip {% if sel_urole == 'admin' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='admin', ulevel=sel_ulevel) }}">{{ t('ad.role_admin') }}</a>
-        </div>
-      </div>
-      <div class="filter-row">
-        <span class="filter-label">{{ t('ad.filter_level') }}</span>
-        <div class="filter-chips">
-          <a class="fchip {% if not sel_ulevel %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole=sel_urole) }}">{{ t('ad.filter_all') }}</a>
-          {% for code, name in LEVELS %}
-          <a class="fchip {% if sel_ulevel == code %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole=sel_urole, ulevel=code) }}">{{ name }}</a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
     <div class="card table-card">
       <table class="atable">
         <thead>
-          <tr><th>#</th><th>{{ t('ad.name_col') }}</th><th>{{ t('ad.email_col') }}</th><th>{{ t('ad.level') }}</th><th>{{ t('ad.role_col') }}</th><th>{{ t('ad.watch_col') }}</th><th>{{ t('ad.subscription_col') }}</th><th>{{ t('ad.action_col') }}</th></tr>
+          <tr>
+            <th>#</th>
+            <th>{{ t('ad.name_col') }}</th>
+            <th>{{ t('ad.email_col') }}</th>
+            <th class="th-filterable">
+              <span>{{ t('ad.level') }}</span>
+              <button type="button" class="col-filter-btn {% if sel_ulevel %}col-filter-active{% endif %}" aria-label="{{ t('ad.filter_level') }}">▾</button>
+              <div class="col-filter-menu" hidden>
+                <a href="{{ url_for('admin_panel', tab='users', urole=sel_urole, usub=sel_usub) }}" class="{% if not sel_ulevel %}col-filter-on{% endif %}">{{ t('ad.filter_all') }}</a>
+                {% for code, name in LEVELS %}
+                <a href="{{ url_for('admin_panel', tab='users', urole=sel_urole, usub=sel_usub, ulevel=code) }}" class="{% if sel_ulevel == code %}col-filter-on{% endif %}">{{ name }}</a>
+                {% endfor %}
+              </div>
+            </th>
+            <th class="th-filterable">
+              <span>{{ t('ad.role_col') }}</span>
+              <button type="button" class="col-filter-btn {% if sel_urole %}col-filter-active{% endif %}" aria-label="{{ t('ad.filter_role') }}">▾</button>
+              <div class="col-filter-menu" hidden>
+                <a href="{{ url_for('admin_panel', tab='users', ulevel=sel_ulevel, usub=sel_usub) }}" class="{% if not sel_urole %}col-filter-on{% endif %}">{{ t('ad.filter_all') }}</a>
+                <a href="{{ url_for('admin_panel', tab='users', urole='student', ulevel=sel_ulevel, usub=sel_usub) }}" class="{% if sel_urole == 'student' %}col-filter-on{% endif %}">{{ t('ad.role_student') }}</a>
+                <a href="{{ url_for('admin_panel', tab='users', urole='prof', ulevel=sel_ulevel, usub=sel_usub) }}" class="{% if sel_urole == 'prof' %}col-filter-on{% endif %}">{{ t('ad.role_prof') }}</a>
+                <a href="{{ url_for('admin_panel', tab='users', urole='admin', ulevel=sel_ulevel, usub=sel_usub) }}" class="{% if sel_urole == 'admin' %}col-filter-on{% endif %}">{{ t('ad.role_admin') }}</a>
+              </div>
+            </th>
+            <th>{{ t('ad.watch_col') }}</th>
+            <th class="th-filterable">
+              <span>{{ t('ad.subscription_col') }}</span>
+              <button type="button" class="col-filter-btn {% if sel_usub %}col-filter-active{% endif %}" aria-label="{{ t('ad.filter_subscription') }}">▾</button>
+              <div class="col-filter-menu" hidden>
+                <a href="{{ url_for('admin_panel', tab='users', urole=sel_urole, ulevel=sel_ulevel) }}" class="{% if not sel_usub %}col-filter-on{% endif %}">{{ t('ad.filter_all') }}</a>
+                <a href="{{ url_for('admin_panel', tab='users', urole=sel_urole, ulevel=sel_ulevel, usub='active') }}" class="{% if sel_usub == 'active' %}col-filter-on{% endif %}">{{ t('ad.filter_subscribed') }}</a>
+                <a href="{{ url_for('admin_panel', tab='users', urole=sel_urole, ulevel=sel_ulevel, usub='inactive') }}" class="{% if sel_usub == 'inactive' %}col-filter-on{% endif %}">{{ t('ad.filter_not_subscribed') }}</a>
+              </div>
+            </th>
+            <th>{{ t('ad.action_col') }}</th>
+          </tr>
         </thead>
         <tbody>
         {% for u in users %}
@@ -147,19 +162,7 @@
             <td>{{ u.name }}</td>
             <td dir="ltr"><small>{{ u.email }}</small></td>
             <td>{{ LEVEL_MAP.get(u.level_code, '—') }}</td>
-            <td>
-              {% if u.role == 'admin' %}
-                {{ t('ad.role_admin') }}
-              {% else %}
-                <div class="muted">{{ t('ad.role_prof') if u.role == 'prof' else t('ad.role_student') }}</div>
-                <form method="post" action="{{ url_for('admin_user_role', uid=u.id) }}" class="inline-form">
-                  <select name="role" class="mini-select" onchange="this.form.requestSubmit()" title="{{ t('ad.change_role') }}">
-                    <option value="student" {% if u.role == 'student' %}selected{% endif %}>{{ t('ad.role_student') }}</option>
-                    <option value="prof" {% if u.role == 'prof' %}selected{% endif %}>{{ t('ad.role_prof') }}</option>
-                  </select>
-                </form>
-              {% endif %}
-            </td>
+            <td>{% if u.role == 'admin' %}{{ t('ad.role_admin') }}{% elif u.role == 'prof' %}{{ t('ad.role_prof') }}{% else %}{{ t('ad.role_student') }}{% endif %}</td>
             <td class="num">{% if u.role == 'student' %}{{ t('pf.n_minutes', n=watch_min_map.get(u.id, 0)) }}{% else %}—{% endif %}</td>
             <td>
               {% if u.sub_until and u.sub_until >= today %}

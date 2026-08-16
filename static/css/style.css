@@ -762,6 +762,24 @@ code { font-family: var(--font-mono); background: var(--paper); padding: 0 .35em
 .atable { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 720px; }
 .atable th, .atable td { padding: 12px 14px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .atable thead th { background: var(--paper-soft); font-size: .82rem; color: var(--ink-soft); border-bottom: 2px solid var(--ink); }
+.th-filterable { position: relative; white-space: nowrap; }
+.col-filter-btn {
+  background: none; border: none; cursor: pointer; color: var(--ink-soft); font-size: .8rem;
+  padding: 2px 4px; margin-inline-start: 4px; border-radius: 4px;
+}
+.col-filter-btn:hover { background: rgba(23,36,74,.08); color: var(--ink); }
+.col-filter-active { color: var(--pen); font-weight: 700; }
+.col-filter-menu {
+  position: absolute; top: 100%; inset-inline-start: 0; z-index: 30; margin-top: 4px;
+  background: var(--card); border: 2px solid var(--ink); border-radius: 10px;
+  box-shadow: var(--shadow); min-width: 160px; padding: 6px; text-align: start;
+  font-weight: 400; font-size: .85rem;
+}
+.col-filter-menu a {
+  display: block; padding: 7px 10px; border-radius: 6px; color: var(--ink); white-space: nowrap;
+}
+.col-filter-menu a:hover { background: rgba(23,36,74,.06); }
+.col-filter-menu a.col-filter-on { color: var(--pen); font-weight: 700; }
 .inline-form { display: inline-block; margin-inline-end: 6px; }
 .mini-select { padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--line); font-family: var(--font-body); font-size: .82rem; }
 .admin-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }

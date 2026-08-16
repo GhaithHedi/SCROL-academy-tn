@@ -85,6 +85,15 @@
     if (settingsClose) settingsClose.addEventListener("click", function () { settingsSetOpen(false); });
   }
 
+  /* ---- Excel-style column-header filter dropdowns (admin tables) ---- */
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest(".col-filter-btn");
+    document.querySelectorAll(".col-filter-menu").forEach(function (menu) {
+      if (!btn || menu !== btn.nextElementSibling) menu.hidden = true;
+    });
+    if (btn) btn.nextElementSibling.hidden = !btn.nextElementSibling.hidden;
+  });
+
   /* ---- AI tutor chat widget ---- */
   var aiFab = document.getElementById("aiChatFab");
   var aiPanel = document.getElementById("aiChatPanel");
