@@ -101,17 +101,17 @@
     </div>
     <div class="steps-grid">
       <article class="step-card reveal">
-        <span class="step-num">١</span>
+        <span class="step-num">{{ 'I' if lang == 'fr' else '١' }}</span>
         <h3>{{ t('idx.step1_title') }}</h3>
         <p>{{ t('idx.step1_desc') }}</p>
       </article>
       <article class="step-card reveal delay-1">
-        <span class="step-num">٢</span>
+        <span class="step-num">{{ 'II' if lang == 'fr' else '٢' }}</span>
         <h3>{{ t('idx.step2_title') }}</h3>
         <p>{{ t('idx.step2_desc') }}</p>
       </article>
       <article class="step-card reveal delay-2">
-        <span class="step-num">٣</span>
+        <span class="step-num">{{ 'III' if lang == 'fr' else '٣' }}</span>
         <h3>{{ t('idx.step3_title') }}</h3>
         <p>{{ t('idx.step3_desc') }}</p>
       </article>
