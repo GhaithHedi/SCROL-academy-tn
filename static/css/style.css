@@ -6,6 +6,7 @@
    ============================================================ */
 
 :root {
+  color-scheme: light;
   --paper:      #F8F9F3;
   --paper-soft: #FDFDF9;
   --grid:       rgba(35, 80, 216, 0.075);
@@ -29,6 +30,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --paper:      #10121B;
   --paper-soft: #151827;
   --grid:       rgba(255, 255, 255, 0.045);
@@ -630,8 +632,9 @@ code { font-family: var(--font-mono); background: var(--paper); padding: 0 .35em
   background: var(--paper-soft); width: 100%; transition: border-color .15s;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--pen); background: #fff;
+  outline: none; border-color: var(--pen); background: var(--card);
 }
+.field select option, .mini-select option { background: var(--card); color: var(--ink); }
 .field-row { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; }
 .field-row .field { flex: 1; }
 .check { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .92rem; padding-bottom: 12px; }

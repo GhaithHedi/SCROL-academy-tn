@@ -1079,6 +1079,7 @@ TR = {
                              "fr": "Abonnement activé/prolongé manuellement."},
     "flash.sub_revoked": {"ar": "تم إيقاف الاشتراك.",
                            "fr": "L'abonnement a été suspendu."},
+    "flash.role_updated": {"ar": "تم تغيير صفة الحساب.", "fr": "Le rôle du compte a été modifié."},
     "flash.course_added": {"ar": "أُضيف المحور الجديد.",
                             "fr": "Le nouveau chapitre a été ajouté."},
     "flash.course_invalid": {"ar": "تحقق من الحقول: المستوى، المادة، والعنوان إجبارية.",
@@ -1748,6 +1749,11 @@ TR = {
     "ad.subscription_col": {"ar": "الاشتراك", "fr": "Abonnement"},
     "ad.role_admin": {"ar": "إدارة", "fr": "Admin"},
     "ad.role_student": {"ar": "تلميذ", "fr": "Élève"},
+    "ad.role_prof": {"ar": "أستاذ(ة)", "fr": "Enseignant(e)"},
+    "ad.change_role": {"ar": "تغيير الصفة", "fr": "Changer le rôle"},
+    "ad.filter_role": {"ar": "الصفة:", "fr": "Rôle :"},
+    "ad.filter_level": {"ar": "المستوى:", "fr": "Niveau :"},
+    "ad.filter_all": {"ar": "الكل", "fr": "Tous"},
     "ad.active_until": {"ar": "مفعّل حتى {date}", "fr": "Actif jusqu'au {date}"},
     "ad.not_subscribed": {"ar": "غير مشترك", "fr": "Non abonné"},
     "ad.activate_extend": {"ar": "تفعيل/تمديد", "fr": "Activer/Prolonger"},
@@ -3163,7 +3169,17 @@ def admin_panel():
         "revenue": query("SELECT COALESCE(SUM(amount),0) s FROM payments "
                          "WHERE status='approved'", one=True)["s"],
     }
-    users = query("SELECT * FROM users ORDER BY id DESC")
+    sel_urole = request.args.get("urole", "")
+    sel_ulevel = request.args.get("ulevel", "")
+    u_where, u_params = [], []
+    if sel_urole in ("student", "prof", "admin"):
+        u_where.append("role=?")
+        u_params.append(sel_urole)
+    if sel_ulevel in all_level_codes():
+        u_where.append("level_code=?")
+        u_params.append(sel_ulevel)
+    users_sql = "SELECT * FROM users" + (" WHERE " + " AND ".join(u_where) if u_where else "") + " ORDER BY id DESC"
+    users = query(users_sql, tuple(u_params))
     watch_min_map = {r["user_id"]: round(r["s"] / 60) for r in query(
         "SELECT user_id, SUM(watched_seconds) s FROM lesson_watch GROUP BY user_id")}
     payments = query(
@@ -3346,6 +3362,7 @@ def admin_panel():
            ORDER BY created_at DESC LIMIT 20""")
 
     return render_template("admin/panel.html", tab=tab, d=data, users=users,
+                           sel_urole=sel_urole, sel_ulevel=sel_ulevel,
                            payments=payments, course_rows=course_rows,
                            lives=lives, creator_map=creator_map, clicks_by_session=clicks_by_session,
                            pay_map={c: pay_method_name(c) for c in PAY_METHOD_CODES},
@@ -3392,6 +3409,23 @@ def admin_grant(uid):
 def admin_revoke(uid):
     execute("UPDATE users SET sub_plan=NULL, sub_until=NULL, sub_subject=NULL WHERE id=?", (uid,))
     flash(t("flash.sub_revoked"), "warn")
+    return redirect(url_for("admin_panel", tab="users"))
+
+
+@app.route("/admin/user/<int:uid>/role", methods=["POST"])
+@admin_required
+def admin_user_role(uid):
+    new_role = request.form.get("role")
+    if new_role not in ("student", "prof"):
+        abort(400)
+    user = query("SELECT role FROM users WHERE id=?", (uid,), one=True)
+    # Never touch an admin account through this quick control -- role changes
+    # only move between student <-> prof, both ways, matching how teachers
+    # commonly end up self-registering as students by mistake.
+    if not user or user["role"] not in ("student", "prof"):
+        abort(404)
+    execute("UPDATE users SET role=? WHERE id=?", (new_role, uid))
+    flash(t("flash.role_updated"), "ok")
     return redirect(url_for("admin_panel", tab="users"))
 
 

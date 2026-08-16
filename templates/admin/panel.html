@@ -115,11 +115,26 @@
 
     {# ------------------------------- USERS ------------------------------- #}
     {% if tab == 'users' %}
-    <form method="post" action="{{ url_for('admin_cleanup_seed_accounts') }}" class="inline-form"
-          style="margin-bottom: 12px;"
-          onsubmit="return confirm('{{ t('ad.cleanup_seed_confirm') }}');">
-      <button class="btn btn-outline btn-sm">{{ t('ad.cleanup_seed_btn') }}</button>
-    </form>
+    <div class="filters card">
+      <div class="filter-row">
+        <span class="filter-label">{{ t('ad.filter_role') }}</span>
+        <div class="filter-chips">
+          <a class="fchip {% if not sel_urole %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', ulevel=sel_ulevel) }}">{{ t('ad.filter_all') }}</a>
+          <a class="fchip {% if sel_urole == 'student' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='student', ulevel=sel_ulevel) }}">{{ t('ad.role_student') }}</a>
+          <a class="fchip {% if sel_urole == 'prof' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='prof', ulevel=sel_ulevel) }}">{{ t('ad.role_prof') }}</a>
+          <a class="fchip {% if sel_urole == 'admin' %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole='admin', ulevel=sel_ulevel) }}">{{ t('ad.role_admin') }}</a>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">{{ t('ad.filter_level') }}</span>
+        <div class="filter-chips">
+          <a class="fchip {% if not sel_ulevel %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole=sel_urole) }}">{{ t('ad.filter_all') }}</a>
+          {% for code, name in LEVELS %}
+          <a class="fchip {% if sel_ulevel == code %}fchip-on{% endif %}" href="{{ url_for('admin_panel', tab='users', urole=sel_urole, ulevel=code) }}">{{ name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
     <div class="card table-card">
       <table class="atable">
         <thead>
@@ -128,11 +143,23 @@
         <tbody>
         {% for u in users %}
           <tr>
-            <td class="num">{{ u.id }}</td>
+            <td class="num">{{ loop.index }}</td>
             <td>{{ u.name }}</td>
             <td dir="ltr"><small>{{ u.email }}</small></td>
             <td>{{ LEVEL_MAP.get(u.level_code, '—') }}</td>
-            <td>{{ t('ad.role_admin') if u.role == 'admin' else t('ad.role_student') }}</td>
+            <td>
+              {% if u.role == 'admin' %}
+                {{ t('ad.role_admin') }}
+              {% else %}
+                <div class="muted">{{ t('ad.role_prof') if u.role == 'prof' else t('ad.role_student') }}</div>
+                <form method="post" action="{{ url_for('admin_user_role', uid=u.id) }}" class="inline-form">
+                  <select name="role" class="mini-select" onchange="this.form.requestSubmit()" title="{{ t('ad.change_role') }}">
+                    <option value="student" {% if u.role == 'student' %}selected{% endif %}>{{ t('ad.role_student') }}</option>
+                    <option value="prof" {% if u.role == 'prof' %}selected{% endif %}>{{ t('ad.role_prof') }}</option>
+                  </select>
+                </form>
+              {% endif %}
+            </td>
             <td class="num">{% if u.role == 'student' %}{{ t('pf.n_minutes', n=watch_min_map.get(u.id, 0)) }}{% else %}—{% endif %}</td>
             <td>
               {% if u.sub_until and u.sub_until >= today %}
