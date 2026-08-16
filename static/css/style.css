@@ -514,6 +514,52 @@ code { font-family: var(--font-mono); background: var(--paper); padding: 0 .35em
 .player { overflow: hidden; }
 .player-frame { position: relative; padding-top: 56.25%; background: #000; }
 .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+.player-clickcatch { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; margin: 0; background: transparent; cursor: pointer; z-index: 1; }
+
+.player-controls {
+  position: absolute; inset-inline: 0; bottom: 0; z-index: 2;
+  display: flex; align-items: center; gap: 10px; padding: 22px 14px 12px;
+  background: linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,.5) 60%, transparent);
+  opacity: 1; transition: opacity .2s ease;
+}
+.player-controls-hidden { opacity: 0; pointer-events: none; }
+.pc-btn {
+  flex: none; width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+  background: rgba(255,255,255,.12); color: #fff; font-size: .95rem; display: flex; align-items: center; justify-content: center;
+}
+.pc-btn:hover { background: rgba(255,255,255,.25); }
+.pc-time { flex: none; font-family: var(--font-mono); font-size: .76rem; color: #fff; min-width: 36px; text-align: center; }
+.pc-seek, .pc-volume {
+  -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: rgba(255,255,255,.3); cursor: pointer;
+}
+.pc-seek { flex: 1; min-width: 60px; }
+.pc-group { display: flex; align-items: center; gap: 6px; position: relative; }
+.pc-volume { width: 60px; flex: none; }
+.pc-seek::-webkit-slider-thumb, .pc-volume::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #fff; cursor: pointer;
+}
+.pc-seek::-moz-range-thumb, .pc-volume::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%; background: #fff; border: none; cursor: pointer;
+}
+.pc-quality-menu {
+  position: absolute; bottom: 40px; inset-inline-end: 0; list-style: none;
+  background: rgba(20,20,20,.95); border-radius: 10px; padding: 6px; min-width: 84px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.pc-quality-menu li button {
+  display: block; width: 100%; text-align: center; padding: 7px 10px; border-radius: 6px;
+  background: none; border: none; color: #fff; font-size: .82rem; cursor: pointer;
+}
+.pc-quality-menu li button:hover { background: rgba(255,255,255,.12); }
+.pc-quality-menu li button.pc-quality-on { color: var(--pen); font-weight: 700; }
+
+.player-frame:fullscreen { padding-top: 0; height: 100vh; }
+.player-frame:-webkit-full-screen { padding-top: 0; height: 100vh; }
+
+@media (max-width: 520px) {
+  .pc-volume { display: none; }
+}
 .watch-info { margin-top: 18px; display: grid; gap: 8px; }
 .watch-info h1 { font-size: 1.5rem; }
 .watch-info p { color: var(--ink-soft); }

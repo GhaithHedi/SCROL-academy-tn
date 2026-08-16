@@ -12,12 +12,28 @@
       </nav>
 
       <div class="player card">
-        <div class="player-frame">
+        <div class="player-frame" id="playerFrame">
           <iframe id="ytPlayer"
-            src="https://www.youtube.com/embed/{{ lesson.youtube_id }}?enablejsapi=1&rel=0&modestbranding=1&origin={{ request.url_root[:-1] }}"
+            src="https://www.youtube.com/embed/{{ lesson.youtube_id }}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&origin={{ request.url_root[:-1] }}"
             title="{{ lesson_title(c.level_code, c.subject, lesson.position, lesson.title) }}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen loading="lazy"></iframe>
+            loading="lazy"></iframe>
+          <button type="button" class="player-clickcatch" id="playerClickCatch" aria-label="{{ t('wa.play') }}"></button>
+          <div class="player-controls" id="playerControls">
+            <button type="button" class="pc-btn" id="pcPlayPause" aria-label="{{ t('wa.play') }}">▶</button>
+            <span class="pc-time" id="pcCurrent">0:00</span>
+            <input type="range" class="pc-seek" id="pcSeek" min="0" max="1000" value="0" step="1" aria-label="{{ t('wa.seek') }}">
+            <span class="pc-time" id="pcDuration">0:00</span>
+            <div class="pc-group">
+              <button type="button" class="pc-btn" id="pcMute" aria-label="{{ t('wa.mute') }}">🔊</button>
+              <input type="range" class="pc-volume" id="pcVolume" min="0" max="100" value="100" aria-label="{{ t('wa.volume') }}">
+            </div>
+            <div class="pc-group pc-quality-group">
+              <button type="button" class="pc-btn" id="pcQuality" aria-label="{{ t('wa.quality') }}">⚙️</button>
+              <ul class="pc-quality-menu" id="pcQualityMenu" hidden></ul>
+            </div>
+            <button type="button" class="pc-btn" id="pcFullscreen" aria-label="{{ t('wa.fullscreen') }}">⛶</button>
+          </div>
         </div>
       </div>
 
@@ -220,17 +236,162 @@
     }
   }
 
+  /* ---- Custom overlay controls, built on the documented controls=0 +
+     IFrame API pattern. Nothing here ever hides or obscures YouTube's own
+     UI/branding — it's purely our own playback controls layered on top,
+     using the same official API YouTube's docs use for this exact case. ---- */
+  var playerFrame = document.getElementById("playerFrame");
+  var clickCatch = document.getElementById("playerClickCatch");
+  var playerControls = document.getElementById("playerControls");
+  var pcPlayPause = document.getElementById("pcPlayPause");
+  var pcCurrent = document.getElementById("pcCurrent");
+  var pcSeek = document.getElementById("pcSeek");
+  var pcDuration = document.getElementById("pcDuration");
+  var pcMute = document.getElementById("pcMute");
+  var pcVolume = document.getElementById("pcVolume");
+  var pcQuality = document.getElementById("pcQuality");
+  var pcQualityMenu = document.getElementById("pcQualityMenu");
+  var pcFullscreen = document.getElementById("pcFullscreen");
+  var seeking = false;
+  var seekTimer = null;
+  var duration = 0;
+  var uiTimer = null;
+  var hideTimer = null;
+  var HIDE_DELAY = 2500;
+  var QUALITY_LABELS = {
+    highres: "4K", hd2160: "2160p", hd1440: "1440p", hd1080: "1080p",
+    hd720: "720p", large: "480p", medium: "360p", small: "240p",
+    tiny: "144p", auto: "{{ t('wa.quality_auto') }}"
+  };
+
+  function setPlayIcon(playing) {
+    pcPlayPause.textContent = playing ? "⏸" : "▶";
+    pcPlayPause.setAttribute("aria-label", playing ? "{{ t('wa.pause') }}" : "{{ t('wa.play') }}");
+  }
+
+  function togglePlay() {
+    if (!player) return;
+    if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+    else player.playVideo();
+  }
+
+  function isPlaying() {
+    return player && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING;
+  }
+
+  function showControls() {
+    playerControls.classList.remove("player-controls-hidden");
+    clearTimeout(hideTimer);
+    if (isPlaying()) hideTimer = setTimeout(hideControls, HIDE_DELAY);
+  }
+
+  function hideControls() {
+    if (isPlaying() && !pcQuality.getAttribute("aria-expanded")) {
+      playerControls.classList.add("player-controls-hidden");
+    }
+  }
+
+  clickCatch.addEventListener("click", function () { togglePlay(); showControls(); });
+  playerFrame.addEventListener("mouseenter", showControls);
+  playerFrame.addEventListener("mousemove", showControls);
+  pcPlayPause.addEventListener("click", function () { togglePlay(); showControls(); });
+
+  pcSeek.addEventListener("input", function () {
+    seeking = true;
+    if (duration) pcCurrent.textContent = fmtTime((pcSeek.value / 1000) * duration);
+  });
+  pcSeek.addEventListener("change", function () {
+    if (player && duration) player.seekTo((pcSeek.value / 1000) * duration, true);
+    clearTimeout(seekTimer);
+    seekTimer = setTimeout(function () { seeking = false; }, 300);
+  });
+
+  pcMute.addEventListener("click", function () {
+    if (!player) return;
+    if (player.isMuted()) { player.unMute(); pcMute.textContent = "🔊"; }
+    else { player.mute(); pcMute.textContent = "🔇"; }
+  });
+  pcVolume.addEventListener("input", function () {
+    if (!player) return;
+    player.setVolume(pcVolume.value);
+    if (pcVolume.value > 0 && player.isMuted()) { player.unMute(); pcMute.textContent = "🔊"; }
+  });
+
+  function refreshQualityMenu() {
+    if (!player) return;
+    var levels = [];
+    try { levels = player.getAvailableQualityLevels(); } catch (err) {}
+    if (!levels.length) levels = ["auto"];
+    var current = player.getPlaybackQuality ? player.getPlaybackQuality() : "auto";
+    pcQualityMenu.innerHTML = "";
+    levels.forEach(function (level) {
+      var li = document.createElement("li");
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = QUALITY_LABELS[level] || level;
+      if (level === current) btn.className = "pc-quality-on";
+      btn.addEventListener("click", function () {
+        player.setPlaybackQuality(level);
+        pcQualityMenu.hidden = true;
+        pcQuality.removeAttribute("aria-expanded");
+      });
+      li.appendChild(btn);
+      pcQualityMenu.appendChild(li);
+    });
+  }
+
+  pcQuality.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = pcQualityMenu.hidden;
+    pcQualityMenu.hidden = !open;
+    if (open) { refreshQualityMenu(); pcQuality.setAttribute("aria-expanded", "true"); }
+    else pcQuality.removeAttribute("aria-expanded");
+  });
+  document.addEventListener("click", function (e) {
+    if (!pcQualityMenu.hidden && !pcQualityMenu.contains(e.target) && e.target !== pcQuality) {
+      pcQualityMenu.hidden = true;
+      pcQuality.removeAttribute("aria-expanded");
+    }
+  });
+
+  pcFullscreen.addEventListener("click", function () {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (playerFrame.requestFullscreen) playerFrame.requestFullscreen();
+  });
+  document.addEventListener("fullscreenchange", function () {
+    pcFullscreen.textContent = document.fullscreenElement ? "✕" : "⛶";
+  });
+
   window.onYouTubeIframeAPIReady = function () {
     player = new YT.Player("ytPlayer", {
       events: {
+        onReady: function () {
+          try { duration = player.getDuration(); pcDuration.textContent = fmtTime(duration); } catch (err) {}
+          try { pcVolume.value = player.getVolume(); } catch (err) {}
+        },
         onStateChange: function (e) {
           if (e.data === YT.PlayerState.PLAYING) {
+            setPlayIcon(true);
+            showControls();
+            try { duration = player.getDuration(); pcDuration.textContent = fmtTime(duration); } catch (err) {}
             clearInterval(reportTimer);
             reportTimer = setInterval(function () {
               try { sendProgress(player.getCurrentTime()); } catch (err) {}
             }, 10000);
+            clearInterval(uiTimer);
+            uiTimer = setInterval(function () {
+              if (seeking || !duration) return;
+              try {
+                pcSeek.value = (player.getCurrentTime() / duration) * 1000;
+                pcCurrent.textContent = fmtTime(player.getCurrentTime());
+              } catch (err) {}
+            }, 500);
           } else {
+            setPlayIcon(false);
+            clearTimeout(hideTimer);
+            playerControls.classList.remove("player-controls-hidden");
             clearInterval(reportTimer);
+            clearInterval(uiTimer);
             try { sendProgress(player.getCurrentTime()); } catch (err) {}
           }
         }
