@@ -593,26 +593,54 @@
         <button class="btn btn-primary">{{ t('ad.add_session_btn') }}</button>
       </form>
 
-      <div class="card table-card">
-        <table class="atable">
-          <thead><tr><th>{{ t('ad.session_col') }}</th><th>{{ t('ad.subject_level_col') }}</th><th>{{ t('ad.appointment_col') }}</th><th></th></tr></thead>
-          <tbody>
-          {% for s in lives %}
-            <tr>
-              <td><b>{{ s.title }}</b><br><small>{{ s.teacher or '' }}</small></td>
-              <td>{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</td>
-              <td><small>{{ s.starts_at|ardate }}</small></td>
-              <td>
-                <form method="post" action="{{ url_for('admin_live_delete', lid=s.id) }}" class="inline-form">
-                  <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
-                </form>
-              </td>
-            </tr>
-          {% else %}
-            <tr><td colspan="4" class="center muted">{{ t('ad.no_sessions') }}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      <div>
+        {% for s in lives %}
+        {% set status = live_session_status(s) %}
+        {% set clicks = clicks_by_session.get(s.id, []) %}
+        <details class="card acourse">
+          <summary>
+            <span class="status {% if status == 'live' %}status-approved{% elif status == 'ended' %}status-off{% else %}status-pending{% endif %}">
+              {% if status == 'live' %}{{ t('ad.status_live') }}{% elif status == 'ended' %}{{ t('ad.status_ended') }}{% else %}{{ t('ad.status_upcoming') }}{% endif %}
+            </span>
+            <b>{{ s.title }}</b>
+            <span class="muted">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }} · {{ s.starts_at|ardate }}</span>
+            <span class="acourse-chevron" aria-hidden="true">▾</span>
+          </summary>
+
+          <div class="acourse-body">
+            <p class="muted">{{ t('ad.scheduled_by') }} {{ creator_map.get(s.created_by) or s.teacher or t('ad.scheduled_by_unknown') }}</p>
+
+            <h4 class="acourse-subhead">{{ t('ad.students_joined') }} {% if clicks %}— {{ t('ad.students_joined_n', n=clicks|length) }}{% endif %}</h4>
+            {% if clicks %}
+            <ul class="admin-lessons">
+              {% for c in clicks %}
+              <li class="admin-lesson-row">
+                <div class="alr-top">
+                  <div class="alr-main">{{ c.name }} <span class="muted">— {{ LEVEL_MAP.get(c.level_code, '—') }}</span></div>
+                  <small class="muted">{{ c.clicked_at }}</small>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted">{{ t('ad.no_joins') }}</p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('admin_live_recording', lid=s.id) }}" class="aform-inline">
+              <label class="field"><span>{{ t('ad.recording_url_field') }}</span>
+                <input type="url" name="recording_url" dir="ltr" value="{{ s.recording_url or '' }}" placeholder="https://...">
+              </label>
+              <button class="btn btn-primary btn-xs">{{ t('ad.save_recording_btn') }}</button>
+            </form>
+
+            <form method="post" action="{{ url_for('admin_live_delete', lid=s.id) }}" class="inline-form" style="margin-top: 10px;">
+              <button class="btn btn-lock btn-xs">{{ t('ad.delete') }}</button>
+            </form>
+          </div>
+        </details>
+        {% else %}
+        <p class="muted center">{{ t('ad.no_sessions') }}</p>
+        {% endfor %}
       </div>
     </div>
     {% endif %}

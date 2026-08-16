@@ -321,7 +321,16 @@ CREATE TABLE IF NOT EXISTS live_sessions (
     starts_at    TEXT NOT NULL,
     duration_min INTEGER DEFAULT 60,
     meet_url     TEXT,
-    reminded_at  TEXT
+    reminded_at  TEXT,
+    created_by   INTEGER REFERENCES users(id),
+    recording_url TEXT
+);
+CREATE TABLE IF NOT EXISTS live_session_clicks (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES live_sessions(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    clicked_at TEXT NOT NULL,
+    UNIQUE(session_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS block_reminders (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -644,6 +653,10 @@ def init_db():
     if "reminded_at" not in ls_cols:
         db.execute("ALTER TABLE live_sessions ADD COLUMN reminded_at TEXT")
         db.commit()
+    if "created_by" not in ls_cols:
+        db.execute("ALTER TABLE live_sessions ADD COLUMN created_by INTEGER REFERENCES users(id)")
+        db.execute("ALTER TABLE live_sessions ADD COLUMN recording_url TEXT")
+        db.commit()
     u_cols = [r[1] for r in db.execute("PRAGMA table_info(users)")]
     if "sub_subject" not in u_cols:
         db.execute("ALTER TABLE users ADD COLUMN sub_subject TEXT")
@@ -741,6 +754,21 @@ def student_live_filter(user):
         where += " AND subject=?"
         params.append(user["sub_subject"])
     return where, params
+
+
+def live_session_status(s):
+    """'upcoming' | 'live' | 'ended', computed from starts_at + duration_min."""
+    try:
+        starts = dt.datetime.strptime(s["starts_at"], "%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return "upcoming"
+    ends = starts + dt.timedelta(minutes=s["duration_min"] or 60)
+    now = dt.datetime.now()
+    if now < starts:
+        return "upcoming"
+    if now < ends:
+        return "live"
+    return "ended"
 
 
 def login_required(view):
@@ -1110,6 +1138,7 @@ TR = {
                             "fr": "Vérifiez les champs avant d'ajouter la session."},
     "flash.live_deleted": {"ar": "حُذفت الحصة.",
                             "fr": "La session a été supprimée."},
+    "flash.recording_saved": {"ar": "تم حفظ رابط التسجيل.", "fr": "Le lien de l'enregistrement a été enregistré."},
     "flash.chat_sent": {"ar": "أُرسلت الرسالة إلى دردشة المستوى.",
                          "fr": "Le message a été envoyé au chat du niveau."},
     "flash.chat_invalid": {"ar": "اختر المستوى واكتب نص الرسالة.",
@@ -1481,6 +1510,10 @@ TR = {
                     "fr": "Le nouveau programme est publié ici chaque semaine — restez à l'écoute."},
     "lv.past": {"ar": "حصص سابقة", "fr": "Sessions passées"},
     "lv.ended": {"ar": "انتهت", "fr": "Terminée"},
+    "lv.live_now": {"ar": "🔴 مباشر الآن", "fr": "🔴 En direct maintenant"},
+    "lv.recordings_title": {"ar": "تسجيلات الحصص", "fr": "Enregistrements des sessions"},
+    "lv.watch_recording": {"ar": "▶ مشاهدة التسجيل", "fr": "▶ Voir l'enregistrement"},
+    "lv.no_recordings": {"ar": "لا توجد تسجيلات متاحة بعد.", "fr": "Aucun enregistrement disponible pour le moment."},
 
     # dashboard.html
     "db.title": {"ar": "فضائي الشخصي", "fr": "Mon espace"},
@@ -1749,6 +1782,17 @@ TR = {
     "ad.appointment_col": {"ar": "الموعد", "fr": "Rendez-vous"},
     "ad.delete": {"ar": "حذف", "fr": "Supprimer"},
     "ad.no_sessions": {"ar": "لا توجد حصص.", "fr": "Aucune session."},
+    "ad.status_upcoming": {"ar": "قادمة", "fr": "À venir"},
+    "ad.status_live": {"ar": "🔴 مباشرة الآن", "fr": "🔴 En direct"},
+    "ad.status_ended": {"ar": "انتهت", "fr": "Terminée"},
+    "ad.scheduled_by": {"ar": "برمجها:", "fr": "Programmée par :"},
+    "ad.scheduled_by_unknown": {"ar": "—", "fr": "—"},
+    "ad.details": {"ar": "التفاصيل", "fr": "Détails"},
+    "ad.students_joined": {"ar": "التلاميذ الذين دخلوا الرابط", "fr": "Élèves ayant cliqué sur le lien"},
+    "ad.students_joined_n": {"ar": "دخل {n} تلميذ/تلاميذ", "fr": "{n} élève(s) ont cliqué"},
+    "ad.no_joins": {"ar": "لم ينقر أي تلميذ على الرابط بعد.", "fr": "Aucun élève n'a encore cliqué sur le lien."},
+    "ad.recording_url_field": {"ar": "رابط تسجيل الحصة", "fr": "Lien de l'enregistrement"},
+    "ad.save_recording_btn": {"ar": "حفظ", "fr": "Enregistrer"},
     "ad.level_label": {"ar": "المستوى:", "fr": "Niveau :"},
     "ad.message_to_chat": {"ar": "＋ رسالة إلى دردشة {level}", "fr": "＋ Message pour le chat de {level}"},
     "ad.message_text": {"ar": "نص الرسالة", "fr": "Texte du message"},
@@ -1900,6 +1944,7 @@ app.jinja_env.globals.update(
     pay_method_name=pay_method_name, course_title=course_title,
     course_description=course_description, lesson_title=lesson_title,
     lesson_description=lesson_description, has_subject_access=has_subject_access,
+    live_session_status=live_session_status,
 )
 
 
@@ -2599,15 +2644,29 @@ def _activate(uid, plan, subject=None):
 # ----------------------------------------------------------------------------
 @app.route("/live")
 def live():
-    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
     where, extra = student_live_filter(g.user)
-    upcoming = query(
-        "SELECT * FROM live_sessions WHERE starts_at >= ?" + where + " ORDER BY starts_at",
-        tuple([now] + extra))
-    past = query(
-        "SELECT * FROM live_sessions WHERE starts_at < ?" + where +
-        " ORDER BY starts_at DESC LIMIT 6", tuple([now] + extra))
-    return render_template("live.html", upcoming=upcoming, past=past)
+    rows = query("SELECT * FROM live_sessions WHERE 1=1" + where + " ORDER BY starts_at",
+                 tuple(extra))
+    upcoming = [s for s in rows if live_session_status(s) != "ended"]
+    past = sorted((s for s in rows if live_session_status(s) == "ended"),
+                  key=lambda s: s["starts_at"], reverse=True)[:6]
+    recordings = [s for s in rows if s["recording_url"]]
+    return render_template("live.html", upcoming=upcoming, past=past, recordings=recordings)
+
+
+@app.route("/live/<int:lid>/join")
+@login_required
+def live_join(lid):
+    s = query("SELECT * FROM live_sessions WHERE id=?", (lid,), one=True)
+    if not s:
+        abort(404)
+    if not has_subject_access(s["subject"]) or not s["meet_url"]:
+        abort(403)
+    if g.user["role"] == "student":
+        now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+        execute("INSERT OR IGNORE INTO live_session_clicks(session_id,user_id,clicked_at) "
+                "VALUES(?,?,?)", (lid, g.user["id"], now))
+    return redirect(s["meet_url"])
 
 
 # ----------------------------------------------------------------------------
@@ -3120,6 +3179,18 @@ def admin_panel():
         course_rows = [c for c in course_rows if c["level_code"] == g.user["level_code"]]
         lives = [s for s in lives if s["level_code"] == g.user["level_code"]]
 
+    # ---- lives tab: who scheduled each session + who clicked to join ----
+    creator_map = {}
+    clicks_by_session = {}
+    if tab == "lives":
+        creator_map = {u["id"]: u["name"] for u in
+                       query("SELECT id, name FROM users WHERE role IN ('admin','prof')")}
+        for r in query(
+                """SELECT lc.session_id, u.name, u.level_code, lc.clicked_at
+                   FROM live_session_clicks lc JOIN users u ON u.id = lc.user_id
+                   ORDER BY lc.clicked_at"""):
+            clicks_by_session.setdefault(r["session_id"], []).append(r)
+
     # ---- content tab: lessons (+ resources) and quizzes (+ questions) per course ----
     lessons_by_course = {}
     quiz_by_course = {}
@@ -3276,7 +3347,7 @@ def admin_panel():
 
     return render_template("admin/panel.html", tab=tab, d=data, users=users,
                            payments=payments, course_rows=course_rows,
-                           lives=lives,
+                           lives=lives, creator_map=creator_map, clicks_by_session=clicks_by_session,
                            pay_map={c: pay_method_name(c) for c in PAY_METHOD_CODES},
                            levels_data=levels_data, sel_level=sel_level,
                            level_courses=level_courses, chat_level=chat_level,
@@ -3544,11 +3615,11 @@ def admin_live_add():
     starts = request.form.get("starts_at", "").strip().replace("T", " ")
     if title and subject in all_subject_codes() and level in all_level_codes() and starts:
         execute("INSERT INTO live_sessions(title,subject,level_code,teacher,"
-                "starts_at,duration_min,meet_url) VALUES(?,?,?,?,?,?,?)",
+                "starts_at,duration_min,meet_url,created_by) VALUES(?,?,?,?,?,?,?,?)",
                 (title, subject, level,
                  request.form.get("teacher", "").strip(), starts,
                  int(request.form.get("duration_min", 60) or 60),
-                 request.form.get("meet_url", "").strip()))
+                 request.form.get("meet_url", "").strip(), g.user["id"]))
         flash(t("flash.live_added"), "ok")
     else:
         flash(t("flash.live_invalid"), "error")
@@ -3564,6 +3635,20 @@ def admin_live_delete(lid):
             abort(403)
     execute("DELETE FROM live_sessions WHERE id=?", (lid,))
     flash(t("flash.live_deleted"), "warn")
+    return redirect(url_for("admin_panel", tab="lives"))
+
+
+@app.route("/admin/live/<int:lid>/recording", methods=["POST"])
+@staff_required
+def admin_live_recording(lid):
+    live = query("SELECT level_code FROM live_sessions WHERE id=?", (lid,), one=True)
+    if not live:
+        abort(404)
+    if g.user["role"] == "prof" and live["level_code"] != g.user["level_code"]:
+        abort(403)
+    execute("UPDATE live_sessions SET recording_url=? WHERE id=?",
+            (request.form.get("recording_url", "").strip() or None, lid))
+    flash(t("flash.recording_saved"), "ok")
     return redirect(url_for("admin_panel", tab="lives"))
 
 

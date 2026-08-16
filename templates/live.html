@@ -20,7 +20,11 @@
       <article class="live-row card reveal">
         <div class="live-when">
           <span class="live-date">{{ s.starts_at|ardate }}</span>
+          {% if live_session_status(s) == 'live' %}
+          <span class="live-dur live-now-badge">{{ t('lv.live_now') }}</span>
+          {% else %}
           <span class="live-dur">⏱ {{ s.duration_min }} {{ t('lv.minutes') }}</span>
+          {% endif %}
         </div>
         <div class="live-info">
           <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</span>
@@ -29,7 +33,7 @@
         </div>
         <div class="live-action">
           {% if has_subject_access(s.subject) and s.meet_url %}
-            <a class="btn btn-live" href="{{ s.meet_url }}" target="_blank" rel="noopener">{{ t('lv.live_link') }}</a>
+            <a class="btn btn-live" href="{{ url_for('live_join', lid=s.id) }}" target="_blank" rel="noopener">{{ t('lv.live_link') }}</a>
           {% elif g.user %}
             <a class="btn btn-lock" href="{{ url_for('pricing') }}">{{ t('lv.subscribers_only') }}</a>
           {% else %}
@@ -61,6 +65,37 @@
         <div class="live-action"><span class="chip">{{ t('lv.ended') }}</span></div>
       </article>
       {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="list-title">{{ t('lv.recordings_title') }}</h2>
+    {% if recordings %}
+    <div class="live-list">
+      {% for s in recordings %}
+      <article class="live-row card">
+        <div class="live-when">
+          <span class="live-date">{{ s.starts_at|ardate }}</span>
+        </div>
+        <div class="live-info">
+          <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[s.subject].color }};">{{ SUBJECT_MAP[s.subject] }} — {{ LEVEL_MAP[s.level_code] }}</span>
+          <h3>{{ s.title }}</h3>
+          {% if s.teacher %}<span class="live-teacher">👨‍🏫 {{ s.teacher }}</span>{% endif %}
+        </div>
+        <div class="live-action">
+          {% if has_subject_access(s.subject) %}
+            <a class="btn btn-live" href="{{ s.recording_url }}" target="_blank" rel="noopener">{{ t('lv.watch_recording') }}</a>
+          {% elif g.user %}
+            <a class="btn btn-lock" href="{{ url_for('pricing') }}">{{ t('lv.subscribers_only') }}</a>
+          {% else %}
+            <a class="btn btn-lock" href="{{ url_for('login', next='/live') }}">{{ t('lv.login_btn') }}</a>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state card">
+      <p>{{ t('lv.no_recordings') }}</p>
     </div>
     {% endif %}
 
