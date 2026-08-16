@@ -1377,12 +1377,6 @@ TR = {
                               "avec le pack accès complet."},
     "wa.offers": {"ar": "العروض", "fr": "Les offres"},
     "wa.chapter_lessons": {"ar": "دروس المحور", "fr": "Cours du chapitre"},
-    "wa.play": {"ar": "تشغيل", "fr": "Lecture"},
-    "wa.pause": {"ar": "إيقاف مؤقت", "fr": "Pause"},
-    "wa.mute": {"ar": "كتم الصوت", "fr": "Couper le son"},
-    "wa.seek": {"ar": "شريط التقدّم", "fr": "Barre de progression"},
-    "wa.volume": {"ar": "مستوى الصوت", "fr": "Volume"},
-    "wa.fullscreen": {"ar": "ملء الشاشة", "fr": "Plein écran"},
 
     # pricing.html
     "pr.eyebrow": {"ar": "بلا مفاجآت وبلا رموز صغيرة", "fr": "Sans surprise et sans petits caractères"},

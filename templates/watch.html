@@ -11,26 +11,13 @@
         <a href="{{ url_for('course', cid=c.id) }}">{{ course_title(c.level_code, c.subject, c.title) }}</a>
       </nav>
 
-      <div class="player card" id="playerCard">
+      <div class="player card">
         <div class="player-frame">
           <iframe id="ytPlayer"
-            src="https://www.youtube.com/embed/{{ lesson.youtube_id }}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1&cc_load_policy=0&playsinline=1&origin={{ request.url_root[:-1] }}"
+            src="https://www.youtube.com/embed/{{ lesson.youtube_id }}?enablejsapi=1&rel=0&modestbranding=1&origin={{ request.url_root[:-1] }}"
             title="{{ lesson_title(c.level_code, c.subject, lesson.position, lesson.title) }}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            loading="lazy"></iframe>
-          <button type="button" class="player-cover player-cover-idle" id="playerCover" aria-label="{{ t('wa.play') }}">
-            <img src="https://i.ytimg.com/vi/{{ lesson.youtube_id }}/hqdefault.jpg" alt="" class="player-cover-thumb">
-            <span class="player-cover-icon" id="playerCoverIcon">▶</span>
-          </button>
-        </div>
-        <div class="player-controls" id="playerControls">
-          <button type="button" class="pc-btn" id="pcPlayPause" aria-label="{{ t('wa.play') }}">▶</button>
-          <span class="pc-time" id="pcCurrent">0:00</span>
-          <input type="range" class="pc-seek" id="pcSeek" min="0" max="1000" value="0" step="1" aria-label="{{ t('wa.seek') }}">
-          <span class="pc-time" id="pcDuration">0:00</span>
-          <button type="button" class="pc-btn" id="pcMute" aria-label="{{ t('wa.mute') }}">🔊</button>
-          <input type="range" class="pc-volume" id="pcVolume" min="0" max="100" value="100" aria-label="{{ t('wa.volume') }}">
-          <button type="button" class="pc-btn" id="pcFullscreen" aria-label="{{ t('wa.fullscreen') }}">⛶</button>
+            allowfullscreen loading="lazy"></iframe>
         </div>
       </div>
 
@@ -129,7 +116,7 @@
 <script>
 (function () {
   var lessonId = {{ lesson.id }};
-  var player, reportTimer, uiTimer, lastSent = 0;
+  var player, reportTimer, lastSent = 0;
 
   function fmtTime(totalSeconds) {
     totalSeconds = Math.max(0, Math.floor(totalSeconds || 0));
@@ -233,106 +220,17 @@
     }
   }
 
-  /* ---- Custom branded controls (no YouTube chrome, no outbound link) ---- */
-  var cover = document.getElementById("playerCover");
-  var coverIcon = document.getElementById("playerCoverIcon");
-  var pcPlayPause = document.getElementById("pcPlayPause");
-  var pcCurrent = document.getElementById("pcCurrent");
-  var pcSeek = document.getElementById("pcSeek");
-  var pcDuration = document.getElementById("pcDuration");
-  var pcMute = document.getElementById("pcMute");
-  var pcVolume = document.getElementById("pcVolume");
-  var pcFullscreen = document.getElementById("pcFullscreen");
-  var playerCardEl = document.getElementById("playerCard");
-  var seeking = false;
-  var seekTimer = null;
-  var duration = 0;
-  var coverHideTimer = null;
-
-  function setPlayIcon(playing) {
-    var glyph = playing ? "⏸" : "▶";
-    pcPlayPause.textContent = glyph;
-    pcPlayPause.setAttribute("aria-label", playing ? "{{ t('wa.pause') }}" : "{{ t('wa.play') }}");
-  }
-
-  function setCoverState(idle, ended) {
-    cover.className = "player-cover " + (idle ? "player-cover-idle" : "player-cover-active");
-    if (idle) coverIcon.textContent = ended ? "↻" : "▶";
-  }
-
-  function togglePlay() {
-    if (!player) return;
-    if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-    else player.playVideo();
-  }
-
-  cover.addEventListener("click", togglePlay);
-  pcPlayPause.addEventListener("click", togglePlay);
-
-  pcSeek.addEventListener("input", function () {
-    seeking = true;
-    if (duration) pcCurrent.textContent = fmtTime((pcSeek.value / 1000) * duration);
-  });
-  pcSeek.addEventListener("change", function () {
-    if (player && duration) player.seekTo((pcSeek.value / 1000) * duration, true);
-    clearTimeout(seekTimer);
-    seekTimer = setTimeout(function () { seeking = false; }, 300);
-  });
-
-  pcMute.addEventListener("click", function () {
-    if (!player) return;
-    if (player.isMuted()) { player.unMute(); pcMute.textContent = "🔊"; }
-    else { player.mute(); pcMute.textContent = "🔇"; }
-  });
-  pcVolume.addEventListener("input", function () {
-    if (!player) return;
-    player.setVolume(pcVolume.value);
-    if (pcVolume.value > 0 && player.isMuted()) { player.unMute(); pcMute.textContent = "🔊"; }
-  });
-
-  pcFullscreen.addEventListener("click", function () {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else if (playerCardEl.requestFullscreen) playerCardEl.requestFullscreen();
-  });
-  document.addEventListener("fullscreenchange", function () {
-    pcFullscreen.textContent = document.fullscreenElement ? "✕" : "⛶";
-  });
-
   window.onYouTubeIframeAPIReady = function () {
     player = new YT.Player("ytPlayer", {
       events: {
-        onReady: function () {
-          try { duration = player.getDuration(); pcDuration.textContent = fmtTime(duration); } catch (err) {}
-          try { pcVolume.value = player.getVolume(); } catch (err) {}
-        },
         onStateChange: function (e) {
           if (e.data === YT.PlayerState.PLAYING) {
-            setPlayIcon(true);
-            // YouTube can briefly show its own promo/annotation overlay right
-            // as playback (re)starts, even with controls/annotations disabled —
-            // keep our cover up a moment longer so it never peeks through.
-            clearTimeout(coverHideTimer);
-            coverHideTimer = setTimeout(function () { setCoverState(false); }, 1500);
-            try { duration = player.getDuration(); pcDuration.textContent = fmtTime(duration); } catch (err) {}
             clearInterval(reportTimer);
             reportTimer = setInterval(function () {
               try { sendProgress(player.getCurrentTime()); } catch (err) {}
             }, 10000);
-            clearInterval(uiTimer);
-            uiTimer = setInterval(function () {
-              if (seeking || !duration) return;
-              try {
-                pcSeek.value = (player.getCurrentTime() / duration) * 1000;
-                pcCurrent.textContent = fmtTime(player.getCurrentTime());
-              } catch (err) {}
-            }, 500);
           } else {
-            clearTimeout(coverHideTimer);
-            setPlayIcon(false);
-            if (e.data === YT.PlayerState.ENDED) setCoverState(true, true);
-            else if (e.data === YT.PlayerState.PAUSED) setCoverState(true);
             clearInterval(reportTimer);
-            clearInterval(uiTimer);
             try { sendProgress(player.getCurrentTime()); } catch (err) {}
           }
         }
