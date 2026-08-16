@@ -2,3 +2,6 @@ flask>=3.0
 anthropic>=0.120
 gunicorn>=22.0
 requests>=2.31
+fpdf2>=2.8
+arabic-reshaper>=3.0
+python-bidi>=0.6

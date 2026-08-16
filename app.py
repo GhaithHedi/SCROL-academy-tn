@@ -14,7 +14,7 @@ import time
 from functools import wraps
 
 from flask import (Flask, g, render_template, request, redirect,
-                   url_for, session, flash, abort, jsonify)
+                   url_for, session, flash, abort, jsonify, Response)
 from werkzeug.security import generate_password_hash, check_password_hash
 
 try:
@@ -27,7 +27,15 @@ try:
 except ImportError:
     requests = None
 
+try:
+    from fpdf import FPDF
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+except ImportError:
+    FPDF = None
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ARABIC_FONT_PATH = os.path.join(BASE_DIR, "static", "fonts", "NotoNaskhArabic-Regular.ttf")
 
 
 def load_dotenv(path):
@@ -353,6 +361,14 @@ CREATE TABLE IF NOT EXISTS lesson_watch (
     watched_seconds INTEGER NOT NULL DEFAULT 0,
     updated_at      TEXT NOT NULL,
     UNIQUE(user_id, lesson_id)
+);
+CREATE TABLE IF NOT EXISTS lesson_notes (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    lesson_id     INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    timestamp_sec INTEGER NOT NULL DEFAULT 0,
+    body          TEXT NOT NULL,
+    created_at    TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS study_blocks (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -995,6 +1011,7 @@ TR = {
     "flash.subscribers_only": {"ar": "هذا الدرس متاح للمشتركين فقط — الدرس الأول من كل محور مجاني.",
                                 "fr": "Ce cours est réservé aux abonnés — le premier cours "
                                       "de chaque chapitre est gratuit."},
+    "flash.note_invalid": {"ar": "اكتب نص الملاحظة أولًا.", "fr": "Écrivez d'abord le texte de la note."},
     "flash.payment_pending": {"ar": "سجّلنا إشعار الدفع الخاص بك — سيُفعَّل اشتراكك بعد مراجعة الإدارة.",
                                "fr": "Nous avons enregistré votre paiement — votre abonnement "
                                      "sera activé après vérification par l'administration."},
@@ -1792,6 +1809,15 @@ TR = {
 
     # watch.html — resources
     "wa.resources_title": {"ar": "📎 مرفقات الدرس", "fr": "📎 Ressources du cours"},
+
+    # watch.html — notes
+    "notes.title": {"ar": "📝 ملاحظاتي", "fr": "📝 Mes notes"},
+    "notes.add_at": {"ar": "أضف ملاحظة عند", "fr": "Ajouter une note à"},
+    "notes.placeholder": {"ar": "اكتب ملاحظتك هنا…", "fr": "Écrivez votre note ici…"},
+    "notes.add_btn": {"ar": "إضافة", "fr": "Ajouter"},
+    "notes.export_pdf": {"ar": "⬇️ تصدير PDF", "fr": "⬇️ Exporter en PDF"},
+    "notes.empty": {"ar": "لا توجد ملاحظات بعد لهذا الدرس.", "fr": "Aucune note pour ce cours pour l'instant."},
+    "notes.delete": {"ar": "حذف", "fr": "Supprimer"},
 }
 
 
@@ -1941,6 +1967,15 @@ def ardateshort(value):
         return f"{d.day:02d} {MONTH_NAMES[d.month][get_lang()]} {d.year}"
     except Exception:
         return value
+
+
+@app.template_filter("hms")
+def fmt_hms(total_seconds):
+    """1800 → '30:00', 4025 → '1:07:05' — used for note/video timestamps."""
+    total_seconds = max(0, int(total_seconds or 0))
+    h, rem = divmod(total_seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
 # ----------------------------------------------------------------------------
@@ -2318,9 +2353,13 @@ def watch(lid):
     done_ids = {r["lesson_id"] for r in done_rows}
     resources = query(
         "SELECT * FROM lesson_resources WHERE lesson_id=? ORDER BY position, id", (lid,))
+    notes = query(
+        "SELECT * FROM lesson_notes WHERE user_id=? AND lesson_id=? ORDER BY timestamp_sec",
+        (g.user["id"], lid))
     return render_template("watch.html", lesson=lesson, c=c,
                            playlist=playlist, done_ids=done_ids,
-                           is_done=lesson["id"] in done_ids, resources=resources)
+                           is_done=lesson["id"] in done_ids, resources=resources,
+                           notes=notes)
 
 
 @app.route("/watch/<int:lid>/toggle", methods=["POST"])
@@ -2374,6 +2413,105 @@ def total_watch_minutes(user_id):
     row = query("SELECT COALESCE(SUM(watched_seconds),0) s FROM lesson_watch WHERE user_id=?",
                (user_id,), one=True)
     return round(row["s"] / 60)
+
+
+# ----------------------------------------------------------------------------
+# Timestamped lesson notes + PDF export
+# ----------------------------------------------------------------------------
+def _lesson_access_check(lesson_id):
+    """Fetch (lesson, course) for a lesson the current user may access —
+    mirrors watch()'s gate. Returns (None, None) if not found/not allowed."""
+    lesson = query("SELECT * FROM lessons WHERE id=?", (lesson_id,), one=True)
+    if not lesson:
+        return None, None
+    course = query("SELECT * FROM courses WHERE id=?", (lesson["course_id"],), one=True)
+    if not lesson["is_free"] and not has_subject_access(course["subject"]):
+        return None, None
+    return lesson, course
+
+
+@app.route("/api/notes", methods=["POST"])
+@login_required
+def notes_create():
+    data = request.get_json(silent=True) or {}
+    lesson_id = data.get("lesson_id")
+    timestamp_sec = data.get("timestamp_sec")
+    body = (data.get("body") or "").strip()[:2000]
+    if not isinstance(lesson_id, int) or not isinstance(timestamp_sec, (int, float)) or not body:
+        return jsonify(error=t("flash.note_invalid")), 400
+    lesson, course = _lesson_access_check(lesson_id)
+    if not lesson:
+        return jsonify(error=t("flash.subscribers_only")), 403
+    timestamp_sec = max(0, int(timestamp_sec))
+    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    nid = execute(
+        "INSERT INTO lesson_notes(user_id,lesson_id,timestamp_sec,body,created_at) "
+        "VALUES(?,?,?,?,?)",
+        (g.user["id"], lesson_id, timestamp_sec, body, now))
+    return jsonify(id=nid, timestamp_sec=timestamp_sec, body=body, time_label=fmt_hms(timestamp_sec))
+
+
+@app.route("/api/notes/<int:nid>/delete", methods=["POST"])
+@login_required
+def notes_delete(nid):
+    note = query("SELECT id FROM lesson_notes WHERE id=? AND user_id=?",
+                 (nid, g.user["id"]), one=True)
+    if not note:
+        return jsonify(ok=False), 404
+    execute("DELETE FROM lesson_notes WHERE id=?", (nid,))
+    return jsonify(ok=True)
+
+
+def _shape_ar(text):
+    """Reshape + bidi-reorder text for fpdf2, which draws glyphs left-to-right
+    and has no native Arabic shaping. Safe to call on French/mixed text too —
+    arabic_reshaper leaves non-Arabic characters untouched."""
+    return get_display(arabic_reshaper.reshape(text))
+
+
+def build_notes_pdf(course_name, lesson_name, notes):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font("Naskh", "", ARABIC_FONT_PATH)
+    pdf.set_font("Naskh", size=15)
+    pdf.set_x(pdf.l_margin)
+    pdf.multi_cell(0, 9, _shape_ar(course_name), align="R")
+    pdf.set_x(pdf.l_margin)
+    pdf.set_font("Naskh", size=12)
+    pdf.multi_cell(0, 8, _shape_ar(lesson_name), align="R")
+    pdf.ln(4)
+    for n in notes:
+        pdf.set_x(pdf.l_margin)
+        pdf.set_font("Naskh", size=11)
+        pdf.set_text_color(35, 80, 216)
+        pdf.multi_cell(0, 7, _shape_ar(fmt_hms(n["timestamp_sec"])), align="R")
+        pdf.set_x(pdf.l_margin)
+        pdf.set_font("Naskh", size=11)
+        pdf.set_text_color(20, 20, 20)
+        pdf.multi_cell(0, 7, _shape_ar(n["body"]), align="R")
+        pdf.ln(3)
+    return bytes(pdf.output())
+
+
+@app.route("/lesson/<int:lid>/notes/pdf")
+@login_required
+def notes_pdf(lid):
+    if not FPDF:
+        abort(503)
+    lesson, course = _lesson_access_check(lid)
+    if not lesson:
+        abort(404)
+    notes = query(
+        "SELECT * FROM lesson_notes WHERE user_id=? AND lesson_id=? ORDER BY timestamp_sec",
+        (g.user["id"], lid))
+    if not notes:
+        abort(404)
+    pdf_bytes = build_notes_pdf(
+        course_title(course["level_code"], course["subject"], course["title"]),
+        lesson_title(course["level_code"], course["subject"], lesson["position"], lesson["title"]),
+        notes)
+    return Response(pdf_bytes, mimetype="application/pdf",
+                     headers={"Content-Disposition": f'attachment; filename="notes-{lid}.pdf"'})
 
 
 # ----------------------------------------------------------------------------

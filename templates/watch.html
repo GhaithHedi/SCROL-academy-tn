@@ -54,6 +54,32 @@
         </div>
         {% endif %}
       </div>
+
+      <div class="card notes-panel">
+        <div class="notes-head">
+          <h3>{{ t('notes.title') }}</h3>
+          {% if notes %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('notes_pdf', lid=lesson.id) }}">{{ t('notes.export_pdf') }}</a>
+          {% endif %}
+        </div>
+
+        <form class="notes-add-form" id="notesAddForm">
+          <span class="notes-add-time">{{ t('notes.add_at') }} <b id="notesCurrentTime">0:00</b></span>
+          <textarea id="notesInput" placeholder="{{ t('notes.placeholder') }}" rows="2" maxlength="2000"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">{{ t('notes.add_btn') }}</button>
+        </form>
+
+        <ul class="notes-list" id="notesList">
+          {% for n in notes %}
+          <li class="notes-item" data-note-id="{{ n.id }}">
+            <button type="button" class="notes-time-btn" data-seek="{{ n.timestamp_sec }}">{{ n.timestamp_sec|hms }}</button>
+            <p class="notes-body">{{ n.body }}</p>
+            <button type="button" class="notes-del-btn" data-note-id="{{ n.id }}" aria-label="{{ t('notes.delete') }}">✕</button>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="muted notes-empty" id="notesEmpty" {% if notes %}hidden{% endif %}>{{ t('notes.empty') }}</p>
+      </div>
     </div>
 
     <aside class="watch-side card">
@@ -91,6 +117,94 @@
 (function () {
   var lessonId = {{ lesson.id }};
   var player, reportTimer, lastSent = 0;
+
+  function fmtTime(totalSeconds) {
+    totalSeconds = Math.max(0, Math.floor(totalSeconds || 0));
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    var mm = (h ? (m < 10 ? "0" : "") : "") + m;
+    var ss = (s < 10 ? "0" : "") + s;
+    return h ? (h + ":" + mm + ":" + ss) : (mm + ":" + ss);
+  }
+
+  /* ---- Timestamped notes ---- */
+  (function () {
+    var form = document.getElementById("notesAddForm");
+    var input = document.getElementById("notesInput");
+    var timeLabel = document.getElementById("notesCurrentTime");
+    var list = document.getElementById("notesList");
+    var empty = document.getElementById("notesEmpty");
+    if (!form) return;
+
+    setInterval(function () {
+      if (player && player.getCurrentTime) {
+        try { timeLabel.textContent = fmtTime(player.getCurrentTime()); } catch (err) {}
+      }
+    }, 1000);
+
+    function noteRow(id, seconds, body) {
+      var li = document.createElement("li");
+      li.className = "notes-item";
+      li.setAttribute("data-note-id", id);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "notes-time-btn";
+      btn.setAttribute("data-seek", seconds);
+      btn.textContent = fmtTime(seconds);
+      var p = document.createElement("p");
+      p.className = "notes-body";
+      p.textContent = body;
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "notes-del-btn";
+      del.setAttribute("data-note-id", id);
+      del.textContent = "✕";
+      li.appendChild(btn);
+      li.appendChild(p);
+      li.appendChild(del);
+      return li;
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var body = input.value.trim();
+      if (!body) return;
+      var seconds = 0;
+      try { seconds = Math.floor(player.getCurrentTime()); } catch (err) {}
+      fetch("/api/notes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lesson_id: lessonId, timestamp_sec: seconds, body: body })
+      })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) {
+          if (!res.ok) return;
+          list.appendChild(noteRow(res.data.id, res.data.timestamp_sec, res.data.body));
+          empty.hidden = true;
+          input.value = "";
+        });
+    });
+
+    list.addEventListener("click", function (e) {
+      var seekBtn = e.target.closest(".notes-time-btn");
+      if (seekBtn && player && player.seekTo) {
+        player.seekTo(parseInt(seekBtn.getAttribute("data-seek"), 10), true);
+        return;
+      }
+      var delBtn = e.target.closest(".notes-del-btn");
+      if (delBtn) {
+        var id = delBtn.getAttribute("data-note-id");
+        fetch("/api/notes/" + id + "/delete", { method: "POST" })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) return;
+            var li = list.querySelector('[data-note-id="' + id + '"]');
+            if (li) li.remove();
+            if (!list.children.length) empty.hidden = false;
+          });
+      }
+    });
+  })();
 
   function sendProgress(seconds, useBeacon) {
     seconds = Math.floor(seconds);
