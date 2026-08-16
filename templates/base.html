@@ -178,7 +178,32 @@
           🔔{% if unread_count %}<span class="app-bell-badge">{{ unread_count if unread_count < 10 else '9+' }}</span>{% endif %}
         </a>
         {% endif %}
-        <a class="app-bell" href="{{ url_for('settings') }}" title="{{ t('side.settings') }}">⚙️</a>
+        <div class="settings-widget">
+          <button type="button" class="app-bell" id="settingsFab" aria-label="{{ t('side.settings') }}" aria-expanded="false">⚙️</button>
+          <div class="settings-panel" id="settingsPanel" hidden>
+            <div class="settings-panel-head">
+              <b>⚙️ {{ t('side.settings') }}</b>
+              <button type="button" class="ai-chat-close" id="settingsClose" aria-label="{{ t('ai.close') }}">✕</button>
+            </div>
+            <div class="settings-panel-body">
+              <div class="settings-panel-section">
+                <span class="settings-panel-label">{{ t('st.appearance') }}</span>
+                <div class="theme-switch">
+                  <a class="theme-opt {% if theme == 'light' %}theme-opt-on{% endif %}" href="{{ url_for('set_theme', mode='light') }}">{{ t('st.theme_light') }}</a>
+                  <a class="theme-opt {% if theme == 'dark' %}theme-opt-on{% endif %}" href="{{ url_for('set_theme', mode='dark') }}">{{ t('st.theme_dark') }}</a>
+                </div>
+              </div>
+              <div class="settings-panel-section">
+                <span class="settings-panel-label">{{ t('st.language') }}</span>
+                <div class="theme-switch">
+                  <a class="theme-opt {% if lang == 'ar' %}theme-opt-on{% endif %}" href="{{ url_for('set_lang', code='ar') }}">AR — العربية</a>
+                  <a class="theme-opt {% if lang == 'fr' %}theme-opt-on{% endif %}" href="{{ url_for('set_lang', code='fr') }}">FR — Français</a>
+                </div>
+              </div>
+              <a class="btn btn-lock btn-block btn-sm" href="{{ url_for('logout') }}">{{ t('top.logout') }}</a>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 

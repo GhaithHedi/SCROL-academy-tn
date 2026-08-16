@@ -70,6 +70,21 @@
     });
   }
 
+  /* ---- topbar settings dropdown (appearance / language / logout) ---- */
+  var settingsFab = document.getElementById("settingsFab");
+  var settingsPanel = document.getElementById("settingsPanel");
+  var settingsClose = document.getElementById("settingsClose");
+  if (settingsFab && settingsPanel) {
+    function settingsSetOpen(open) {
+      settingsPanel.hidden = !open;
+      settingsFab.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    settingsFab.addEventListener("click", function () {
+      settingsSetOpen(!!settingsPanel.hidden);
+    });
+    if (settingsClose) settingsClose.addEventListener("click", function () { settingsSetOpen(false); });
+  }
+
   /* ---- AI tutor chat widget ---- */
   var aiFab = document.getElementById("aiChatFab");
   var aiPanel = document.getElementById("aiChatPanel");
