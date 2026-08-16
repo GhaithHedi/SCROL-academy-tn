@@ -762,6 +762,11 @@ code { font-family: var(--font-mono); background: var(--paper); padding: 0 .35em
 .acourse { padding: 14px 20px; margin-bottom: 10px; }
 .acourse summary { cursor: pointer; display: flex; gap: 12px; align-items: center; list-style: none; }
 .acourse summary::-webkit-details-marker { display: none; }
+.acourse-chevron {
+  margin-inline-start: auto; flex: none; color: var(--ink-soft); font-size: 1rem;
+  transition: transform .2s ease;
+}
+.acourse[open] > summary .acourse-chevron { transform: rotate(180deg); }
 .admin-lessons { list-style: none; padding: 12px 6px 4px; display: grid; gap: 8px; }
 
 .acourse-body { padding-top: 14px; display: grid; gap: 6px; }

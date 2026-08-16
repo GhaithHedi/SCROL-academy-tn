@@ -414,6 +414,7 @@
         <span class="chip chip-subj" style="--subj: {{ SUBJECT_META[c.subject].color }};">{{ SUBJECT_MAP[c.subject] }}</span>
         <b>{{ course_title(c.level_code, c.subject, c.title) }}</b>
         <span class="muted">({{ t('crs.n_lessons', n=c.n_lessons) }})</span>
+        <span class="acourse-chevron" aria-hidden="true">▾</span>
       </summary>
 
       <div class="acourse-body">
